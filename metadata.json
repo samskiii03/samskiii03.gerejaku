@@ -1,0 +1,6 @@
+{
+  "name": "Meta Connect",
+  "description": "Enterprise Church Management & Ministry Development Platform",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
