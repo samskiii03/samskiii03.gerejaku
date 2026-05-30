@@ -9,7 +9,7 @@ import { db } from '../utils/storage';
 import { CustomBarChart } from './CustomChart';
 import { 
   Plus, DollarSign, ArrowUpRight, ArrowDownRight, TrendingUp, CheckCircle, 
-  Trash2, Filter, Receipt, FileText, Download, PieChart
+  Trash2, Filter, Receipt, FileText, Download, PieChart, Wallet, FolderHeart, PlusCircle
 } from 'lucide-react';
 
 interface FinancialManagementProps {
@@ -20,8 +20,11 @@ interface FinancialManagementProps {
 export default function FinancialManagement({ currentUser, onRefreshTrail }: FinancialManagementProps) {
   const [filterType, setFilterType] = useState<string>('ALL');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
+  const [filterPocket, setFilterPocket] = useState<string>('ALL');
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isAddPocketOpen, setIsAddPocketOpen] = useState(false);
 
   // Form states
   const [formType, setFormType] = useState<'INCOME' | 'EXPENSE'>('INCOME');
@@ -30,12 +33,38 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
   const [formDescription, setFormDescription] = useState('');
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
   const [formReceipt, setFormReceipt] = useState('');
+  const [formPocketId, setFormPocketId] = useState('');
+
+  // New Pocket Form State
+  const [newPocketName, setNewPocketName] = useState('');
+  const [newPocketDesc, setNewPocketDesc] = useState('');
 
   // Local refresh seed
   const [refreshSeed, setRefreshSeed] = useState(0);
 
   const transactions = db.getTransactions();
   const approvalsList = db.getApprovals();
+  const pockets = db.getPockets(currentUser.churchId);
+
+  // Calculate individual balance of pockets
+  const pocketBalances = pockets.map(pocket => {
+    // For general pocket compatibility fallback
+    const isGeneral = pocket.id.includes('pocket-gereja') || pocket.id === 'pocket-1-gereja';
+    const pocketIncome = transactions
+      .filter(t => t.type === 'INCOME' && (t.pocketId === pocket.id || (isGeneral && !t.pocketId)))
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const pocketExpense = transactions
+      .filter(t => t.type === 'EXPENSE' && (t.pocketId === pocket.id || (isGeneral && !t.pocketId)))
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    return {
+      ...pocket,
+      income: pocketIncome,
+      expense: pocketExpense,
+      balance: pocketIncome - pocketExpense
+    };
+  });
 
   // Financial calculations
   const totalIncome = transactions
@@ -53,7 +82,14 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
   const filteredTransactions = transactions.filter(t => {
     const matchesType = filterType === 'ALL' || t.type === filterType;
     const matchesCategory = filterCategory === 'ALL' || t.category === filterCategory;
-    return matchesType && matchesCategory;
+    
+    // Pocket matching with fallback for older transactions to General church pocket
+    const isGeneralPocket = filterPocket.includes('pocket-gereja') || filterPocket === 'pocket-1-gereja';
+    const matchesPocket = filterPocket === 'ALL' || 
+      t.pocketId === filterPocket || 
+      (isGeneralPocket && !t.pocketId);
+      
+    return matchesType && matchesCategory && matchesPocket;
   });
 
   // Handle transaction creation
@@ -77,6 +113,9 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
       return;
     }
 
+    const defaultPocket = pockets.find(p => p.isSystem) || pockets[0];
+    const resolvedPocketId = formPocketId || (defaultPocket ? defaultPocket.id : '');
+
     const newTx: Transaction = {
       id: 'tx-' + Date.now(),
       type: formType,
@@ -84,7 +123,8 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
       amount: Number(formAmount),
       date: formDate,
       description: formDescription,
-      receipt: formReceipt || undefined
+      receipt: formReceipt || undefined,
+      pocketId: resolvedPocketId
     };
 
     db.addTransaction(newTx, currentUser);
@@ -94,6 +134,7 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
     setFormAmount('');
     setFormDescription('');
     setFormReceipt('');
+    setFormPocketId('');
     setRefreshSeed(prev => prev + 1);
     onRefreshTrail();
   };
@@ -103,6 +144,39 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
       db.deleteTransaction(id, currentUser);
       setRefreshSeed(prev => prev + 1);
       onRefreshTrail();
+    }
+  };
+
+  const handleAddPocketSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPocketName.trim()) {
+      alert("Nama kantong kas harus diisi.");
+      return;
+    }
+    const slug = 'pocket-' + Date.now();
+    db.addPocket({
+      id: slug,
+      name: newPocketName.trim(),
+      description: newPocketDesc.trim() || 'Kantong kas eksternal / pelayanan lokal',
+      churchId: currentUser.churchId
+    }, currentUser);
+    
+    setNewPocketName('');
+    setNewPocketDesc('');
+    setIsAddPocketOpen(false);
+    setRefreshSeed(prev => prev + 1);
+    onRefreshTrail();
+  };
+
+  const handleDeletePocket = (pocketId: string, pocketName: string) => {
+    if (confirm(`⚠️ PERINGATAN HAPUS KANTONG: Apakah Anda yakin ingin menghapus kantong kas "${pocketName}"?\n\nSemua transaksi yang saat ini terhubung ke kantong kas ini akan otomatis dialihkan ke "Kas Gereja" agar pelacakan tidak terputus.`)) {
+      const ok = db.deletePocket(pocketId, currentUser);
+      if (ok) {
+        setRefreshSeed(prev => prev + 1);
+        onRefreshTrail();
+      } else {
+        alert("Gagal menghapus kantong kas. Kantong kas sistem/bawaan tidak boleh dihapus.");
+      }
     }
   };
 
@@ -178,7 +252,7 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
             <div className="p-2 bg-blue-50 text-blue-700 rounded-lg"><ArrowUpRight className="w-4 h-4" /></div>
           </div>
           <div className="mt-4">
-            <h3 className="text-xl font-extrabold text-slate-900 font-sans">Rp {totalIncome.toLocaleString('id-ID')}</h3>
+            <h3 className="text-xl font-extrabold text-slate-900 font-sans">Rp {totalIncome.toLocaleString('id-ID')},-</h3>
             <p className="text-[10px] text-slate-400 font-normal mt-0.5">Akumulasi persembahan & donatur Mei</p>
           </div>
         </div>
@@ -190,7 +264,7 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
             <div className="p-2 bg-rose-50 text-rose-700 rounded-lg"><ArrowDownRight className="w-4 h-4" /></div>
           </div>
           <div className="mt-4">
-            <h3 className="text-xl font-extrabold text-slate-900 font-sans">Rp {totalExpense.toLocaleString('id-ID')}</h3>
+            <h3 className="text-xl font-extrabold text-slate-900 font-sans">Rp {totalExpense.toLocaleString('id-ID')},-</h3>
             <p className="text-[10px] text-slate-400 font-normal mt-0.5">Operasional, sosial, & alat terserap</p>
           </div>
         </div>
@@ -203,7 +277,7 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
           </div>
           <div className="mt-4">
             <h3 className={`text-xl font-extrabold font-sans ${netBalance < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
-              Rp {netBalance.toLocaleString('id-ID')}
+              Rp {netBalance.toLocaleString('id-ID')},-
             </h3>
             <p className="text-[10px] text-slate-400 font-normal mt-0.5">Surplus bersih yang siap dialokasikan</p>
           </div>
@@ -228,6 +302,103 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
               ></div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* SECTION KANTONG KAS (FINANCIAL POCKETS) */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4 shadow-3xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-extrabold text-slate-900 tracking-tight flex items-center space-x-1.5">
+              <Wallet className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Kantong Alokasi Kas Pelayanan ({pockets.length})</span>
+            </h3>
+            <p className="text-[11px] text-slate-500">Saldo dipisahkan per kategori kantong kas agar dana pelayanan pembangunan / sosial tetap terarah.</p>
+          </div>
+          {(currentUser.role === 'GEMBALA' || currentUser.role === 'PENGURUS') && (
+            <button
+              onClick={() => setIsAddPocketOpen(true)}
+              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold transition flex items-center space-x-1 border border-emerald-200 cursor-pointer"
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              <span>Tambah Kantong Baru</span>
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {pocketBalances.map((pocket) => {
+            const isSystem = pocket.isSystem;
+            const balanceColor = pocket.balance < 0 ? 'text-rose-600' : 'text-slate-900';
+            const isActive = filterPocket === pocket.id;
+            
+            return (
+              <div 
+                key={pocket.id}
+                onClick={() => setFilterPocket(isActive ? 'ALL' : pocket.id)}
+                className={`relative p-4 rounded-xl border transition cursor-pointer flex flex-col justify-between ${
+                  isActive 
+                    ? 'border-emerald-600 bg-emerald-50/25 ring-1 ring-emerald-600/50 shadow-xs' 
+                    : 'border-slate-200 bg-slate-50/45 hover:bg-slate-50/80 hover:border-slate-300'
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      {isSystem ? '🟢 KANTONG SISTEM' : '🟡 KANTONG LOKAL'}
+                    </span>
+                    
+                    {!isSystem && (currentUser.role === 'GEMBALA' || currentUser.role === 'PENGURUS') && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeletePocket(pocket.id, pocket.name);
+                        }}
+                        className="p-1 -mr-1 -mt-1 text-slate-450 hover:text-rose-600 transition"
+                        title="Hapus Kantong Kas"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <h4 className="text-xs font-extrabold text-slate-800 mt-1 uppercase tracking-tight flex items-center space-x-1.5">
+                    {pocket.id.includes('pembangunan') && <FolderHeart className="w-3.5 h-3.5 text-blue-500" />}
+                    {pocket.id.includes('sosial') && <FolderHeart className="w-3.5 h-3.5 text-rose-500" />}
+                    {!pocket.id.includes('pembangunan') && !pocket.id.includes('sosial') && <Wallet className="w-3.5 h-3.5 text-slate-500" />}
+                    <span>{pocket.name}</span>
+                  </h4>
+                  
+                  <p className="text-[10px] text-slate-500 font-light mt-1 pl-5 line-clamp-2 h-7" title={pocket.description}>
+                    {pocket.description}
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-200/50 pl-5">
+                  <span className="block text-[9px] font-bold text-slate-400">SALDO BERJALAN</span>
+                  <div className="flex items-baseline justify-between mt-0.5">
+                    <span className={`text-sm font-extrabold font-mono ${balanceColor}`}>
+                      Rp {pocket.balance.toLocaleString('id-ID')},-
+                    </span>
+                    {isActive && (
+                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-sm">MEMFILTER</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          
+          {(currentUser.role === 'GEMBALA' || currentUser.role === 'PENGURUS') && (
+            <div 
+              onClick={() => setIsAddPocketOpen(true)}
+              className="p-4 rounded-xl border border-dashed border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50/50 cursor-pointer flex flex-col items-center justify-center text-center space-y-1 transition min-h-[120px]"
+            >
+              <PlusCircle className="w-6 h-6 text-slate-400" />
+              <span className="text-xs font-extrabold text-slate-600">Tambah Kantong Baru</span>
+              <span className="text-[9px] text-slate-400">Kas khusus sesuai kebutuhan lokal jemaat</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -279,8 +450,8 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
                   </div>
 
                   <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                    <span>Terpakai: Rp {b.spent.toLocaleString('id-ID')}</span>
-                    <span>Limit: Rp {b.allocated.toLocaleString('id-ID')}</span>
+                    <span>Terpakai: Rp {b.spent.toLocaleString('id-ID')},-</span>
+                    <span>Limit: Rp {b.allocated.toLocaleString('id-ID')},-</span>
                   </div>
                 </div>
               );
@@ -324,6 +495,17 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
               <option value="MAINTENANCE">Perawatan Gedung</option>
               <option value="EQUIPMENT">Sound & Multimedia</option>
             </select>
+
+            <select
+              value={filterPocket}
+              onChange={(e) => setFilterPocket(e.target.value)}
+              className="px-2.5 py-1 bg-white border border-slate-200 rounded text-xs font-semibold focus:outline-none"
+            >
+              <option value="ALL">Semua Kantong Kas</option>
+              {pockets.map(pocket => (
+                <option key={pocket.id} value={pocket.id}>{pocket.name}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -333,16 +515,17 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
               <tr>
                 <th className="px-5 py-3">Tanggal</th>
                 <th className="px-5 py-3">Kategori</th>
+                <th className="px-5 py-3">Kantong Kas</th>
                 <th className="px-5 py-3">Deskripsi Transaksi</th>
                 <th className="px-5 py-3 text-right">Jumlah</th>
-                <th className="px-5 py-3">Tanda Terima/Invoice</th>
+                <th className="px-5 py-3">Lampiran / Attachment</th>
                 <th className="px-5 py-3 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-slate-400 italic">Tidak ada rincian mutasi kas masuk/keluar.</td>
+                  <td colSpan={7} className="px-5 py-8 text-center text-slate-400 italic">Tidak ada rincian mutasi kas masuk/keluar.</td>
                 </tr>
               ) : (
                 filteredTransactions.map(t => (
@@ -353,18 +536,29 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
                         {t.category}
                       </span>
                     </td>
+                    <td className="px-5 py-3.5">
+                      {(() => {
+                        const pk = pockets.find(p => p.id === t.pocketId);
+                        const fallbackPocketName = pockets.find(p => p.id.includes('pocket-gereja') || p.id === 'pocket-1-gereja')?.name || 'Kas Gereja';
+                        return (
+                          <span className="px-2 py-0.5 rounded bg-slate-100/80 text-slate-700 border border-slate-200 font-bold text-[10px]">
+                            {pk ? pk.name : fallbackPocketName}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="px-5 py-3.5 text-slate-700 font-medium">{t.description}</td>
                     <td className={`px-5 py-3.5 text-right font-bold text-sm ${t.type === 'INCOME' ? 'text-emerald-700' : 'text-rose-600'}`}>
-                      {t.type === 'INCOME' ? '+' : '-'} Rp {t.amount.toLocaleString('id-ID')}
+                      {t.type === 'INCOME' ? '+' : '-'} Rp {t.amount.toLocaleString('id-ID')},-
                     </td>
                     <td className="px-5 py-3.5">
                       {t.receipt ? (
-                        <span className="inline-flex items-center space-x-1 text-blue-600">
-                          <Receipt className="w-3.5 h-3.5 shrink-0" />
-                          <span className="underline cursor-pointer truncate max-w-[120px]" title={t.receipt}>{t.receipt}</span>
-                        </span>
+                        <div className="inline-flex items-center space-x-1.5 bg-blue-50 text-blue-800 border border-blue-100 px-2 py-1 rounded text-[11px] font-bold shadow-3xs" title={t.receipt}>
+                          <Receipt className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span className="truncate max-w-[130px]">📎 {t.receipt}</span>
+                        </div>
                       ) : (
-                        <span className="text-slate-400 text-[11px] italic">Tanpa invoice</span>
+                        <span className="text-slate-400 text-[11px] italic font-light">Tanpa Lampiran</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-center">
@@ -445,6 +639,22 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
                 </div>
 
                 <div className="col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">KANTONG KAS TARGET *</label>
+                  <select 
+                    value={formPocketId}
+                    onChange={(e) => setFormPocketId(e.target.value)}
+                    className="w-full p-2.5 border rounded outline-none"
+                    required
+                  >
+                    <option value="">-- Pilih Kantong Kas --</option>
+                    {pockets.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Aliran pemasukan/pengeluaran kas akan dicatat khusus pada kantong ini.</p>
+                </div>
+
+                <div className="col-span-2">
                   <label className="block text-[11px] font-bold text-slate-600 mb-1">JUMLAH TRANSAKSI (IDR) *</label>
                   <input 
                     type="number" 
@@ -483,14 +693,15 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">FAKTUR / LAMPIRAN FISIK (URL/NAMA FILE)</label>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">LAMPIRAN / ATTACHMENT (OPSIONAL)</label>
                   <input 
                     type="text" 
-                    placeholder="Contoh: Invoice_PrimaAudio_321.pdf"
+                    placeholder="Ketik nama lampiran (contoh: Kuitansi_PLN_Mei.pdf)"
                     value={formReceipt}
                     onChange={(e) => setFormReceipt(e.target.value)}
-                    className="w-full p-2.5 border rounded outline-none"
+                    className="w-full p-2.5 border rounded outline-none focus:ring-1 focus:ring-slate-950"
                   />
+                  <p className="text-[10px] text-slate-400 mt-1">Ketik nama/keterangan lampiran bukti fisik jika ada. Lampiran ini bersifat opsional.</p>
                 </div>
               </div>
 
@@ -507,6 +718,64 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
                   className="px-4 py-2 bg-slate-900 text-white rounded font-semibold hover:bg-slate-800 transition"
                 >
                   Masukkan Transaksi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic input pocket dialog */}
+      {isAddPocketOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full overflow-hidden border shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="px-5 py-4 border-b bg-slate-50 flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 flex items-center space-x-2">
+                <Wallet className="w-4 h-4 text-emerald-600" />
+                <span>Buat Kantong Kas Baru</span>
+              </h3>
+              <button onClick={() => setIsAddPocketOpen(false)} className="text-slate-400 hover:text-slate-600 text-lg">×</button>
+            </div>
+
+            <form onSubmit={handleAddPocketSubmit} className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">NAMA KANTONG KAS *</label>
+                <input 
+                  type="text" 
+                  required 
+                  placeholder="Contoh: Kas Diakonia, Kas Pemuda, dll"
+                  value={newPocketName}
+                  onChange={(e) => setNewPocketName(e.target.value)}
+                  className="w-full p-2.5 border rounded outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Gunakan nama yang jelas seperti 'Kas Bakti Sosial Jemaat'.</p>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">DESKRIPSI DAN KEPERLUAN *</label>
+                <textarea 
+                  required 
+                  placeholder="Uraikan peruntukan anggaran dari kantong kas baru ini..."
+                  value={newPocketDesc}
+                  onChange={(e) => setNewPocketDesc(e.target.value)}
+                  rows={3}
+                  className="w-full p-2.5 border rounded outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddPocketOpen(false)}
+                  className="px-4 py-2 border hover:bg-slate-50 font-semibold text-slate-600 rounded"
+                >
+                  Batal
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-semibold transition"
+                >
+                  Buat Kantong
                 </button>
               </div>
             </form>

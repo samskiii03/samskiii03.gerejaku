@@ -152,6 +152,15 @@ export interface Transaction {
   description: string;
   receipt?: string; // invoice image/doc URL
   approvalId?: string; // linked approval request
+  pocketId?: string; // linked financial pocket / fund account
+}
+
+export interface FinancialPocket {
+  id: string;
+  name: string;
+  description: string;
+  churchId: string;
+  isSystem?: boolean;
 }
 
 export interface AuditTrail {

@@ -147,7 +147,7 @@ export function CustomLineChart({ data, height = 180, strokeColor = '#3b82f6' }:
           <span className="text-slate-300 font-light text-[9px] uppercase tracking-wider">{points[hoverIndex].label}</span>
           <span className="font-sans font-semibold mt-0.5">
             {points[hoverIndex].value >= 1000 
-              ? `Rp ${points[hoverIndex].value.toLocaleString('id-ID')}` 
+              ? `Rp ${points[hoverIndex].value.toLocaleString('id-ID')},-` 
               : `${points[hoverIndex].value} Jemaat`}
           </span>
         </div>
@@ -251,8 +251,8 @@ export function CustomBarChart({ data, label1 = "Income", label2 = "Expense", he
 
               {/* Tooltip dynamic hover */}
               <title>
-                {`${item.label}\n${label1}: Rp ${item.value1.toLocaleString('id-ID')}` +
-                 (item.value2 !== undefined ? `\n${label2}: Rp ${item.value2.toLocaleString('id-ID')}` : '')}
+                {`${item.label}\n${label1}: Rp ${item.value1.toLocaleString('id-ID')},-` +
+                 (item.value2 !== undefined ? `\n${label2}: Rp ${item.value2.toLocaleString('id-ID')},-` : '')}
               </title>
 
               {/* X label */}

@@ -184,14 +184,21 @@ export default function App() {
       return;
     }
 
+    const usernameClean = regUser.trim().toLowerCase();
+    const isDuplicate = db.getUsers().some(u => u.username.trim().toLowerCase() === usernameClean);
+    if (isDuplicate) {
+      alert(`⚠️ USERNAME SUDAH TERDAFTAR: Nama pengguna "${regUser.trim()}" sudah digunakan di sistem. Harap gunakan nama pengguna (username) lain yang unik agar tidak terjadi data ganda!`);
+      return;
+    }
+
     const matchedChurch = db.getChurches().find(c => c.id === regSelectedChurchId);
     if (!matchedChurch) return;
 
     const nUser: User = {
       id: 'u-' + Date.now(),
-      username: regUser.trim().toLowerCase(),
+      username: usernameClean,
       fullName: regPastor,
-      email: regEmail || `${regUser.trim().toLowerCase()}@metaconnect.org`,
+      email: regEmail || `${usernameClean}@metaconnect.org`,
       role: regUserRole,
       churchId: regSelectedChurchId,
       password: regPass,
@@ -221,6 +228,13 @@ export default function App() {
 
     if (regPass !== regPassConfirm) {
       alert("⚠️ Sandi login tidak cocok! Harap ketik ulang kedua sandi login dengan sama persis.");
+      return;
+    }
+
+    const usernameClean = regUser.trim().toLowerCase();
+    const isDuplicate = db.getUsers().some(u => u.username.trim().toLowerCase() === usernameClean);
+    if (isDuplicate) {
+      alert(`⚠️ USERNAME SUDAH TERDAFTAR: Nama pengguna "${regUser.trim()}" sudah digunakan di sistem. Harap gunakan nama pengguna (username) lain yang unik agar tidak terjadi data ganda!`);
       return;
     }
 

@@ -6,7 +6,7 @@
 import { 
   Church, User, Member, Division, ApprovalRequest, 
   Transaction, Task, SundaySchoolKid, SundaySchoolClass, AuditTrail,
-  ServiceType, ServiceSchedule
+  ServiceType, ServiceSchedule, FinancialPocket
 } from '../types/church';
 
 // Storage keys
@@ -455,22 +455,30 @@ const MOCK_APPROVALS: ApprovalRequest[] = [
   }
 ];
 
+const MOCK_POCKETS: FinancialPocket[] = [
+  { id: 'pocket-1-gereja', name: 'Kas Gereja', description: 'Kas operasional umum gereja untuk pelayanan sehari-hari', churchId: 'c1', isSystem: true },
+  { id: 'pocket-1-pembangunan', name: 'Kas Pembangunan', description: 'Dana khusus pembangunan gedung, perluasan, & fasilitas gereja', churchId: 'c1', isSystem: true },
+  { id: 'pocket-1-sosial', name: 'Kas Sosial', description: 'Dana bantuan sosial, diakonia, kemasyarakatan & jemaat prasejahtera', churchId: 'c1', isSystem: true },
+  { id: 'pocket-2-gereja', name: 'Kas Gereja', description: 'Kas operasional umum gereja untuk pelayanan sehari-hari', churchId: 'c2', isSystem: true },
+  { id: 'pocket-2-pembangunan', name: 'Kas Pembangunan', description: 'Dana khusus pembangunan gedung, perluasan, & fasilitas gereja', churchId: 'c2', isSystem: true }
+];
+
 const MOCK_FINANCE: Transaction[] = [
   // Income 2026 May
-  { id: 'tx-1', type: 'INCOME', category: 'PERSEMBAHAN', amount: 48500000, date: '2026-05-03', description: 'Persembahan Ibadah Raya Minggu I (Sesi 1 & Sesi 2)' },
-  { id: 'tx-2', type: 'INCOME', category: 'UCAPAN_SYUKUR', amount: 15000000, date: '2026-05-05', description: 'Persembahan Syukur HUT Pernikahan Keluarga Budi' },
-  { id: 'tx-3', type: 'INCOME', category: 'DONASI', amount: 25000000, date: '2026-05-10', description: 'Sumbangan pembangunan lift gereja dari donatur anonim' },
-  { id: 'tx-4', type: 'INCOME', category: 'PERSEMBAHAN', amount: 51200000, date: '2026-05-10', description: 'Persembahan Ibadah Raya Minggu II' },
-  { id: 'tx-5', type: 'INCOME', category: 'PERSEMBAHAN', amount: 49400000, date: '2026-05-17', description: 'Persembahan Ibadah Raya Minggu III' },
-  { id: 'tx-6', type: 'INCOME', category: 'UCAPAN_SYUKUR', amount: 8000000, date: '2026-05-20', description: 'Persembahan persepuluhan jemaat' },
-  { id: 'tx-7', type: 'INCOME', category: 'PERSEMBAHAN', amount: 52300000, date: '2026-05-24', description: 'Persembahan Ibadah Raya Minggu IV' },
+  { id: 'tx-1', type: 'INCOME', category: 'PERSEMBAHAN', amount: 48500000, date: '2026-05-03', description: 'Persembahan Ibadah Raya Minggu I (Sesi 1 & Sesi 2)', pocketId: 'pocket-1-gereja' },
+  { id: 'tx-2', type: 'INCOME', category: 'UCAPAN_SYUKUR', amount: 15000000, date: '2026-05-05', description: 'Persembahan Syukur HUT Pernikahan Keluarga Budi', pocketId: 'pocket-1-gereja' },
+  { id: 'tx-3', type: 'INCOME', category: 'DONASI', amount: 25000000, date: '2026-05-10', description: 'Sumbangan pembangunan lift gereja dari donatur anonim', pocketId: 'pocket-1-pembangunan' },
+  { id: 'tx-4', type: 'INCOME', category: 'PERSEMBAHAN', amount: 51200000, date: '2026-05-10', description: 'Persembahan Ibadah Raya Minggu II', pocketId: 'pocket-1-gereja' },
+  { id: 'tx-5', type: 'INCOME', category: 'PERSEMBAHAN', amount: 49400000, date: '2026-05-17', description: 'Persembahan Ibadah Raya Minggu III', pocketId: 'pocket-1-gereja' },
+  { id: 'tx-6', type: 'INCOME', category: 'UCAPAN_SYUKUR', amount: 8000000, date: '2026-05-20', description: 'Persembahan persepuluhan jemaat', pocketId: 'pocket-1-gereja' },
+  { id: 'tx-7', type: 'INCOME', category: 'PERSEMBAHAN', amount: 52300000, date: '2026-05-24', description: 'Persembahan Ibadah Raya Minggu IV', pocketId: 'pocket-1-gereja' },
 
   // Expenses 2026 May
-  { id: 'tx-8', type: 'EXPENSE', category: 'OPERASIONAL', amount: 18500000, date: '2026-05-01', description: 'Tagihan Listrik PLN 3 Pasas, AC Sentral, dan PDAM Mei' },
-  { id: 'tx-9', type: 'EXPENSE', category: 'MAINTENANCE', amount: 4200000, date: '2026-05-04', description: 'Fogging lingkungan gereja & pembersihan filter AC aula' },
-  { id: 'tx-10', type: 'EXPENSE', category: 'SOCIAL', amount: 6500000, date: '2026-05-12', description: 'Subsidi sembako bahan pokok untuk 40 jemaat prasejahtera' },
-  { id: 'tx-11', type: 'EXPENSE', category: 'OPERASIONAL', amount: 12000000, date: '2026-05-15', description: 'Uang transport pelayan mimbar tamu & pembicara' },
-  { id: 'tx-12', type: 'EXPENSE', category: 'EVENT', amount: 12000000, date: '2026-05-21', description: 'Camp Kebaktian Padang Anak Sekolah Minggu 2026 (Linked ID req-2)', approvalId: 'req-2' }
+  { id: 'tx-8', type: 'EXPENSE', category: 'OPERASIONAL', amount: 18500000, date: '2026-05-01', description: 'Tagihan Listrik PLN 3 Pasas, AC Sentral, dan PDAM Mei', pocketId: 'pocket-1-gereja' },
+  { id: 'tx-9', type: 'EXPENSE', category: 'MAINTENANCE', amount: 4200000, date: '2026-05-04', description: 'Fogging lingkungan gereja & pembersihan filter AC aula', pocketId: 'pocket-1-gereja' },
+  { id: 'tx-10', type: 'EXPENSE', category: 'SOCIAL', amount: 6500000, date: '2026-05-12', description: 'Subsidi sembako bahan pokok untuk 40 jemaat prasejahtera', pocketId: 'pocket-1-sosial' },
+  { id: 'tx-11', type: 'EXPENSE', category: 'OPERASIONAL', amount: 12000000, date: '2026-05-15', description: 'Uang transport pelayan mimbar tamu & pembicara', pocketId: 'pocket-1-gereja' },
+  { id: 'tx-12', type: 'EXPENSE', category: 'EVENT', amount: 12000000, date: '2026-05-21', description: 'Camp Kebaktian Padang Anak Sekolah Minggu 2026 (Linked ID req-2)', approvalId: 'req-2', pocketId: 'pocket-1-gereja' }
 ];
 
 const MOCK_TASKS: Task[] = [
@@ -677,6 +685,7 @@ export interface SystemData {
   members: Member[];
   approvals: ApprovalRequest[];
   transactions: Transaction[];
+  pockets?: FinancialPocket[];
   tasks: Task[];
   kids: SundaySchoolKid[];
   classes: SundaySchoolClass[];
@@ -699,6 +708,7 @@ const EMPTY_SYSTEM_STATE: SystemData = {
   members: [],
   approvals: [],
   transactions: [],
+  pockets: [],
   tasks: [],
   kids: [],
   classes: [],
@@ -720,6 +730,7 @@ const DEMO_SYSTEM_STATE: SystemData = {
   members: MOCK_MEMBERS,
   approvals: MOCK_APPROVALS,
   transactions: MOCK_FINANCE,
+  pockets: MOCK_POCKETS,
   tasks: MOCK_TASKS,
   kids: MOCK_KIDS,
   classes: MOCK_CLASSES,
@@ -1202,10 +1213,73 @@ class DatabaseEngine {
     return this.data.transactions || [];
   }
 
+  // Financial Pockets (Kantong Kas)
+  public getPockets(churchId: string): FinancialPocket[] {
+    if (!this.data.pockets) this.data.pockets = [];
+    
+    const churchPockets = this.data.pockets.filter(p => p.churchId === churchId);
+    if (churchPockets.length === 0) {
+      const defaults: FinancialPocket[] = [
+        { id: `pocket-gereja-${churchId}`, name: 'Kas Gereja', description: 'Kas operasional umum gereja untuk pelayanan sehari-hari', churchId, isSystem: true },
+        { id: `pocket-pembangunan-${churchId}`, name: 'Kas Pembangunan', description: 'Dana khusus pembangunan gedung, perluasan, & fasilitas gereja', churchId, isSystem: true },
+        { id: `pocket-sosial-${churchId}`, name: 'Kas Sosial', description: 'Dana bantuan sosial, diakonia, kemasyarakatan & jemaat prasejahtera', churchId, isSystem: true },
+      ];
+      this.data.pockets.push(...defaults);
+      this.persist();
+      return defaults;
+    }
+
+    return churchPockets;
+  }
+
+  public addPocket(pocket: FinancialPocket, updater: User) {
+    if (!this.data.pockets) this.data.pockets = [];
+    this.data.pockets.push(pocket);
+    this.logAudit(updater.id, updater.fullName, 'FIN_POCKET_ADD', `Menambah kantong kas baru: ${pocket.name}`, null, pocket);
+    this.persist();
+  }
+
+  public updatePocket(pocket: FinancialPocket, updater: User) {
+    if (!this.data.pockets) this.data.pockets = [];
+    const idx = this.data.pockets.findIndex(p => p.id === pocket.id);
+    const prev = idx !== -1 ? this.data.pockets[idx] : null;
+
+    if (idx !== -1) {
+      this.data.pockets[idx] = pocket;
+      this.logAudit(updater.id, updater.fullName, 'FIN_POCKET_EDIT', `Mengubah detail kantong kas: ${pocket.name}`, prev, pocket);
+      this.persist();
+    }
+  }
+
+  public deletePocket(pocketId: string, updater: User): boolean {
+    if (!this.data.pockets) this.data.pockets = [];
+    const idx = this.data.pockets.findIndex(p => p.id === pocketId);
+    if (idx !== -1) {
+      const p = this.data.pockets[idx];
+      if (p.isSystem) return false; // Prevent system pocket deletions
+      
+      this.data.pockets.splice(idx, 1);
+      
+      // Also reset any transactions linked to this deleted pocket to general/first pocket available or default
+      if (this.data.transactions) {
+        this.data.transactions.forEach(t => {
+          if (t.pocketId === pocketId) {
+            t.pocketId = `pocket-gereja-${p.churchId}`; // Reset to general
+          }
+        });
+      }
+      
+      this.logAudit(updater.id, updater.fullName, 'FIN_POCKET_DELETE', `Menghapus kantong kas: ${p.name}`, p, null);
+      this.persist();
+      return true;
+    }
+    return false;
+  }
+
   public addTransaction(tx: Transaction, updater: User) {
     if (!this.data.transactions) this.data.transactions = [];
     this.data.transactions.push(tx);
-    this.logAudit(updater.id, updater.fullName, 'FIN_TX_ADD', `Menambah data keuangan (${tx.type} - ${tx.category}): Rp ${tx.amount.toLocaleString('id-ID')}`, null, tx);
+    this.logAudit(updater.id, updater.fullName, 'FIN_TX_ADD', `Menambah data keuangan (${tx.type} - ${tx.category}): Rp ${tx.amount.toLocaleString('id-ID')},-`, null, tx);
     this.persist();
   }
 
@@ -1216,7 +1290,7 @@ class DatabaseEngine {
 
     if (index !== -1) {
       list[index] = tx;
-      this.logAudit(updater.id, updater.fullName, 'FIN_TX_EDIT', `Mengubah nominal/deskripsi keuangan senilai Rp ${tx.amount.toLocaleString('id-ID')}`, prev, tx);
+      this.logAudit(updater.id, updater.fullName, 'FIN_TX_EDIT', `Mengubah nominal/deskripsi keuangan senilai Rp ${tx.amount.toLocaleString('id-ID')},-`, prev, tx);
       this.persist();
     }
   }

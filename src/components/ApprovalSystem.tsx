@@ -213,7 +213,7 @@ export default function ApprovalSystem({ currentUser, onRefreshTrail }: Approval
                 <div className="flex flex-col items-end md:justify-between shrink-0">
                   {item.amount && (
                     <span className="text-sm font-extrabold text-blue-700 font-sans">
-                      Rp {item.amount.toLocaleString('id-ID')}
+                      Rp {item.amount.toLocaleString('id-ID')},-
                     </span>
                   )}
                   <span className="text-[10px] text-slate-400 font-medium">Oleh {item.requesterName}</span>
@@ -255,7 +255,7 @@ export default function ApprovalSystem({ currentUser, onRefreshTrail }: Approval
                   <div>
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Dana yang Diajukan</span>
                     <span className="text-lg font-black text-slate-900 font-sans">
-                      Rp {selectedRequest.amount.toLocaleString('id-ID')}
+                      Rp {selectedRequest.amount.toLocaleString('id-ID')},-
                     </span>
                   </div>
                 )}

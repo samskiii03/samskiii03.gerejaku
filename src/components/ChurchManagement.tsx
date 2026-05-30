@@ -544,7 +544,7 @@ export default function ChurchManagement({ currentUser, onRefreshTrail, onStartI
             <span className="text-slate-400 block font-bold text-[9px] tracking-wider uppercase">Keuangan Gabungan</span>
             <div className="flex items-baseline space-x-1.5">
               <span className="text-sm font-extrabold text-emerald-900">
-                Rp {nationalBalance.toLocaleString('id-ID')}
+                Rp {nationalBalance.toLocaleString('id-ID')},-
               </span>
             </div>
           </div>
