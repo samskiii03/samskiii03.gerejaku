@@ -19,13 +19,15 @@ import AuditTrailView from './components/AuditTrailView';
 import KPICard from './components/KPICard';
 import { CustomDonutChart, CustomLineChart } from './components/CustomChart';
 import ServiceManagement from './components/ServiceManagement';
+import PendingItems from './components/PendingItems';
 
 // Lucide Icons
 import { 
   Users, DollarSign, ListChecks, Landmark, Network, Sparkles, BookOpen, 
   RotateCcw, History, ShieldAlert, BadgeCheck, LogOut, LayoutDashboard, 
   Bell, HelpCircle, ArrowRight, UserPlus, FileText, Settings, Key, 
-  Menu, X, CheckCircle, Info, ChevronRight, CheckCircle2, Calendar 
+  Menu, X, CheckCircle, Info, ChevronRight, CheckCircle2, Calendar, CheckSquare,
+  Camera, Upload
 } from 'lucide-react';
 
 export default function App() {
@@ -76,6 +78,11 @@ export default function App() {
   // Seed for refresh triggers
   const [seed, setSeed] = useState(0);
 
+  // Profile Picture (Avatar) update states
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [avatarInputUrl, setAvatarInputUrl] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+
   // Auditing context simulation parameters
   const effectiveRole = (currentUser?.role === 'SUPER_ADMIN' && auditedChurchId) ? 'GEMBALA' : currentUser?.role;
   const effectiveChurchId = (currentUser?.role === 'SUPER_ADMIN' && auditedChurchId) ? auditedChurchId : currentUser?.churchId;
@@ -98,6 +105,7 @@ export default function App() {
       { id: 'school', name: 'Sekolah Minggu', icon: <BookOpen className="w-4 h-4 shrink-0" />, desc: 'Pencatatan kelas anak, database murid, absensi & pendataan pengajar' },
       { id: 'divisions', name: 'Divisi Pelayanan', icon: <Network className="w-4 h-4 shrink-0" />, desc: 'Manajemen staf departemen, divisi musik, multimedia, & diakonia' },
       { id: 'tasks', name: 'Kanban Task Board', icon: <Key className="w-4 h-4 shrink-0" />, desc: 'Tabel papan tugas to-do list persiapan peribadatan & operasional' },
+      { id: 'pending', name: 'Tugas & Verifikasi Pending', icon: <CheckSquare className="w-4 h-4 shrink-0" />, desc: 'Antrean verifikasi akun pendaftar, checklist tugas persiapan, & approval' },
       { id: 'audit', name: 'Audit Log & Rollback', icon: <History className="w-4 h-4 shrink-0" />, desc: 'Catetan log audit trail, verifikasi aktivitas, & fitur pemulihan' }
     ].filter(menu => {
       const dbMenu = [
@@ -109,6 +117,7 @@ export default function App() {
         { id: 'school', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI'] },
         { id: 'divisions', roles: ['GEMBALA', 'KEPALA_DIVISI'] },
         { id: 'tasks', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
+        { id: 'pending', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
         { id: 'audit', roles: ['GEMBALA'] }
       ].find(m => m.id === menu.id);
       return dbMenu ? dbMenu.roles.includes(effectiveRole) : false;
@@ -292,6 +301,53 @@ export default function App() {
     setRegUser('');
     setRegPass('');
     setRegPassConfirm('');
+  };
+
+  // Profile icon/avatar update handlers
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 2.5 * 1024 * 1024) {
+      alert("⚠️ File gambar terlalu besar! Batas maksimum adalah 2.5MB agar performa database lokal tetap ringan.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setAvatarInputUrl(base64String);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveAvatar = () => {
+    if (!currentUser) return;
+    
+    const updatedUser = {
+      ...currentUser,
+      avatar: avatarInputUrl ? avatarInputUrl.trim() : undefined
+    };
+
+    // Update in users collection
+    db.updateUser(updatedUser);
+    
+    // Update active user session
+    db.setSessionUser(updatedUser);
+    
+    // Update local state
+    setCurrentUser(updatedUser);
+    
+    // Log audit trail
+    db.logAudit(
+      currentUser.id, 
+      currentUser.fullName, 
+      'USER_EDIT_AVATAR', 
+      "Memperbarui foto profil akun pengguna melalui menu pengaturan foto profil."
+    );
+
+    alert("🎉 Foto profil Anda berhasil diperbarui di sistem!");
+    setIsAvatarModalOpen(false);
   };
 
   // Direct quick logins for demo setup
@@ -911,20 +967,39 @@ export default function App() {
             <aside className={`lg:w-64 bg-[#0f172a] text-slate-300 lg:sticky lg:top-14 lg:h-[calc(100vh-56px)] select-none shrink-0 border-r border-slate-900 flex flex-col justify-between p-4 ${mobileSbarOpen ? 'block fixed inset-y-14 left-0 z-50 w-64' : 'hidden lg:flex'}`}>
               <div className="space-y-6">
                 
-                {/* Active user profile block */}
-                <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 space-y-2 flex flex-col items-center text-center">
-                  <div className="w-12 h-12 rounded-full border-2 border-indigo-500 overflow-hidden flex items-center justify-center shrink-0">
-                    {currentUser.avatar ? (
-                      <img src={currentUser.avatar} referrerPolicy="no-referrer" alt="Avatar" className="w-full h-full object-cover" />
+                 {/* Active user profile block with interactive Avatar edit */}
+                <div className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800/80 space-y-2 flex flex-col items-center text-center">
+                  <div 
+                    title="Ubah Foto Profil Anda" 
+                    onClick={() => {
+                      setAvatarInputUrl(currentUser?.avatar || '');
+                      setIsAvatarModalOpen(true);
+                    }}
+                    className="group relative w-12 h-12 rounded-full border-2 border-indigo-500 overflow-hidden flex items-center justify-center shrink-0 cursor-pointer hover:border-white transition shadow-sm"
+                  >
+                    {currentUser?.avatar ? (
+                      <img src={currentUser.avatar} referrerPolicy="no-referrer" alt="Avatar" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" />
                     ) : (
                       <span className="text-xl font-bold font-sans">👤</span>
                     )}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-200">
+                      <Camera className="w-4 h-4 text-white" />
+                    </div>
                   </div>
                   <div>
-                    <h4 className="text-xs font-black truncate max-w-[170px] text-white leading-tight">{currentUser.fullName}</h4>
+                    <h4 className="text-xs font-black truncate max-w-[170px] text-white leading-tight">{currentUser?.fullName}</h4>
                     <span className="inline-block mt-1 text-[9px] font-extrabold uppercase bg-slate-800 tracking-wider text-indigo-400 px-2 py-0.5 rounded-full border border-slate-700/60">
-                      {currentUser.role}
+                      {currentUser?.role}
                     </span>
+                    <button 
+                      onClick={() => {
+                        setAvatarInputUrl(currentUser?.avatar || '');
+                        setIsAvatarModalOpen(true);
+                      }}
+                      className="block mx-auto mt-1.5 text-[10px] font-bold text-indigo-400/90 hover:text-indigo-300 transition hover:underline cursor-pointer"
+                    >
+                      📸 Ubah Foto
+                    </button>
                   </div>
                 </div>
 
@@ -1176,6 +1251,13 @@ export default function App() {
                   <TasksManagement currentUser={effectiveUser || currentUser} />
                 )}
 
+                {activeMenu === 'pending' && (
+                  <PendingItems 
+                    currentUser={effectiveUser || currentUser} 
+                    onRefreshTrail={() => setSeed(s => s + 1)} 
+                  />
+                )}
+
                 {activeMenu === 'synod' && (
                   <ChurchManagement 
                     currentUser={currentUser} 
@@ -1234,7 +1316,158 @@ export default function App() {
         </div>
       )}
 
-      {/* 4. Footer credits with legal info */}
+      {/* 4. Avatar (Profile Photo) Modal */}
+      {isAvatarModalOpen && currentUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="px-5 py-4 border-b bg-slate-50 flex items-center justify-between">
+              <h3 className="font-extrabold text-slate-950 flex items-center space-x-2 text-sm uppercase tracking-tight">
+                <Camera className="w-4 h-4 text-indigo-600 shrink-0" />
+                <span>Pengaturan Foto Profil</span>
+              </h3>
+              <button 
+                onClick={() => setIsAvatarModalOpen(false)} 
+                className="text-slate-450 hover:text-slate-700 font-extrabold text-lg p-1 transition"
+                title="Tutup dialog"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-5 text-xs">
+              <div className="flex items-center space-x-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <div className="w-16 h-16 rounded-full border-2 border-indigo-600 overflow-hidden flex items-center justify-center bg-slate-200 shrink-0 shadow-3xs">
+                  {avatarInputUrl ? (
+                    <img src={avatarInputUrl} referrerPolicy="no-referrer" alt="Pratinjau Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-3xl">👤</span>
+                  )}
+                </div>
+                <div className="space-y-0.5">
+                  <span className="font-extrabold text-slate-900 text-xs block">{currentUser.fullName}</span>
+                  <span className="text-[10px] text-slate-550 font-mono block">Role: {currentUser.role}</span>
+                  <p className="text-[10px] text-slate-400">Pilih rekomendasi karakter, masukkan URL, atau unggah foto Anda sendiri.</p>
+                </div>
+              </div>
+
+              {/* Preset Avatars Grid */}
+              <div className="space-y-2">
+                <label className="block text-[10px] uppercase font-black tracking-wider text-slate-400">Pilih Karakter Pelayanan (Rekomendasi)</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { name: 'Pria 1', url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80' },
+                    { name: 'Wanita 1', url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80' },
+                    { name: 'Wanita 2', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' },
+                    { name: 'Pria 2', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80' },
+                    { name: 'Pria 3', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80' },
+                    { name: 'Pria 4', url: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80' },
+                    { name: 'Wanita 3', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80' },
+                    { name: 'Wanita 4', url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80' }
+                  ].map((preset, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setAvatarInputUrl(preset.url)}
+                      className={`relative aspect-square rounded-lg overflow-hidden border-2 transition hover:scale-105 active:scale-95 duration-150 cursor-pointer ${avatarInputUrl === preset.url ? 'border-indigo-600 ring-2 ring-indigo-100 shadow-sm' : 'border-slate-200 hover:border-slate-400'}`}
+                      title={preset.name}
+                    >
+                      <img src={preset.url} referrerPolicy="no-referrer" alt={preset.name} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Upload Interface */}
+              <div className="space-y-2">
+                <label className="block text-[10px] uppercase font-black tracking-wider text-slate-400">Unggah File Foto Anda</label>
+                <div 
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) {
+                      if (file.size > 2.5 * 1024 * 1024) {
+                        alert("⚠️ File gambar terlalu besar! Batas maksimum adalah 2.5MB agar performa database lokal tetap ringan.");
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        const base64String = reader.result as string;
+                        setAvatarInputUrl(base64String);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className={`border-2 border-dashed rounded-xl p-4 text-center transition ${dragOver ? 'border-indigo-600 bg-indigo-50/20' : 'border-slate-200 bg-slate-50 hover:bg-slate-100/60'}`}
+                >
+                  <div className="flex flex-col items-center space-y-1.5 label-upload cursor-pointer relative h-full justify-center">
+                    <Upload className="w-5 h-5 text-indigo-500 shrink-0 pointer-events-none" />
+                    <p className="text-[11px] font-bold text-slate-700 pointer-events-none">Tarik & lepas file gambar di sini</p>
+                    <p className="text-[10px] text-slate-400 pointer-events-none">Atau cari secara manual melalui dokumen/folder</p>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={handleAvatarFileChange}
+                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Direct Url Input */}
+              <div className="space-y-1">
+                <label className="block text-[10px] uppercase font-black tracking-wider text-slate-400">Atau Tempel Tautan URL Gambar</label>
+                <input 
+                  type="url"
+                  placeholder="https://example.com/foto-anda.jpg"
+                  value={avatarInputUrl.startsWith('data:') ? '' : avatarInputUrl}
+                  onChange={(e) => setAvatarInputUrl(e.target.value)}
+                  className="w-full p-2.5 border rounded-lg outline-none focus:ring-1 focus:ring-indigo-500 text-xs font-mono"
+                />
+                <span className="text-[10px] text-slate-400 italic block mt-0.5">Misalnya, salin tautan file dari internet.</span>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="px-5 py-3 border-t bg-slate-50 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("Hapus foto profil saat ini dan gunakan avatar default?")) {
+                    setAvatarInputUrl('');
+                  }
+                }}
+                className="px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-lg font-bold text-[11px] transition cursor-pointer"
+              >
+                Hapus Foto
+              </button>
+              
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAvatarModalOpen(false)}
+                  className="px-4 py-2 border hover:bg-slate-100 text-slate-600 font-bold rounded-lg transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAvatar}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition shadow-3xs cursor-pointer"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Footer credits with legal info */}
       <footer className="bg-slate-900 border-t border-slate-950 px-6 py-3 shrink-0 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400">
         <span>© 2026 Meta Connect — Jaringan Kemartiran Keuskupan Synod Pusat. All rights reserved.</span>
         <div className="flex items-center space-x-3 mt-1 sm:mt-0 font-medium">
