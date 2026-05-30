@@ -386,32 +386,40 @@ export default function App() {
     computedAlerts.push({
       id: 'al-1',
       title: 'Jemaat Mulai Pasif',
-      desc: `${inactiveCount} Jemaat memiliki skor aktivitas di bawah 40%. Butuh kunjungan pastoral.`,
-      type: 'WARNING'
+      desc: `${inactiveCount} Jemaat memiliki skor aktivitas di bawah 40%. Butuh kunjungan pastoral jemaat.`,
+      type: 'WARNING',
+      targetMenu: 'members',
+      actionLabel: 'Lihat Database Jemaat'
     });
   }
   if (newMembersCount > 0) {
     computedAlerts.push({
       id: 'al-2',
       title: 'Follow-up Jemaat Baru',
-      desc: `Ada ${newMembersCount} jemaat baru belum dihubungi kordinator sektor.`,
-      type: 'INFO'
+      desc: `Ada ${newMembersCount} jemaat baru belum dihubungi kordinator sektor pelayanan.`,
+      type: 'INFO',
+      targetMenu: 'members',
+      actionLabel: 'Tindak Lanjuti Jemaat'
     });
   }
   if (pendingApprovalsCount > 0) {
     computedAlerts.push({
       id: 'al-3',
       title: 'Persetujuan Anggaran',
-      desc: `${pendingApprovalsCount} Pengajuan departemen butuh verifikasi Gembala Sidang.`,
-      type: 'DANGER'
+      desc: `${pendingApprovalsCount} Pengajuan departemen butuh verifikasi pimpinan Gembala Sidang.`,
+      type: 'DANGER',
+      targetMenu: 'approvals',
+      actionLabel: 'Buka Workflow Approval'
     });
   }
   if (pendingUsersCount > 0) {
     computedAlerts.push({
       id: 'al-4',
       title: 'Verifikasi Pendaftar Baru',
-      desc: `Terdapat ${pendingUsersCount} pendaftar baru yang menunggu persetujuan & integrasi database jemaat.`,
-      type: 'WARNING'
+      desc: `Terdapat ${pendingUsersCount} pendaftar baru yang menunggu persetujuan & integrasi database.`,
+      type: 'WARNING',
+      targetMenu: 'pending',
+      actionLabel: 'Verifikasi Akun Baru'
     });
   }
 
@@ -1372,37 +1380,94 @@ export default function App() {
       {/* 3. Alerts overlay slider */}
       {isAlertsOpen && (
         <div className="fixed inset-y-0 right-0 max-w-sm w-full bg-white z-50 border-l shadow-2xl p-5 flex flex-col justify-between animate-in slide-in-from-right duration-300">
-          <div className="space-y-4">
+          <div className="space-y-4 flex-1 overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b">
               <h3 className="font-extrabold text-slate-900 text-sm flex items-center space-x-1.5">
-                <Bell className="w-4 h-4 text-indigo-600" />
-                <span>Peringatan Sistem Pintar</span>
+                <Bell className="w-4 h-4 text-indigo-600 animate-bounce" />
+                <span>Peringatan Sistem Terintegrasi</span>
               </h3>
-              <button onClick={() => setIsAlertsOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold text-lg">×</button>
+              <button 
+                onClick={() => setIsAlertsOpen(false)} 
+                className="text-slate-400 hover:text-slate-600 font-extrabold text-xl w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center transition"
+              >
+                ×
+              </button>
             </div>
 
-            <div className="space-y-3.5 text-xs">
+            <div className="space-y-3 text-xs">
               {computedAlerts.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 italic">Sistem aman. Tidak ada peringatan prioritas saat ini.</div>
               ) : (
-                computedAlerts.map(alert => (
-                  <div key={alert.id} className="p-3 rounded-lg border bg-slate-50 border-slate-200 flex items-start space-x-3">
-                    <span className="text-base shrink-0 mt-0.5">🔔</span>
-                    <div>
-                      <p className="font-bold text-slate-900 leading-snug">{alert.title}</p>
-                      <p className="text-slate-600 font-light leading-relaxed mt-1">{alert.desc}</p>
-                    </div>
-                  </div>
-                ))
+                computedAlerts.map(alert => {
+                  const isPermitted = permittedMenus.some(menu => menu.id === alert.targetMenu);
+                  
+                  // Color schemes depending on warning level
+                  let cardBorder = 'border-slate-200 bg-slate-50 hover:bg-slate-100';
+                  let iconColor = 'text-indigo-500 bg-indigo-50';
+                  let badgeColor = 'bg-indigo-100 text-indigo-700';
+
+                  if (alert.type === 'DANGER') {
+                    cardBorder = 'border-rose-200 bg-rose-50/40 hover:bg-rose-50/70 hover:border-rose-350';
+                    iconColor = 'text-rose-600 bg-rose-100/50';
+                    badgeColor = 'bg-rose-100 text-rose-700';
+                  } else if (alert.type === 'WARNING') {
+                    cardBorder = 'border-amber-200 bg-amber-50/40 hover:bg-amber-50/70 hover:border-amber-300';
+                    iconColor = 'text-amber-600 bg-amber-100/50';
+                    badgeColor = 'bg-amber-100 text-amber-800';
+                  } else if (alert.type === 'INFO') {
+                    cardBorder = 'border-blue-200 bg-blue-50/30 hover:bg-blue-50/60 hover:border-blue-300';
+                    iconColor = 'text-blue-600 bg-blue-100/50';
+                    badgeColor = 'bg-blue-100 text-blue-700';
+                  }
+
+                  return (
+                    <button
+                      key={alert.id}
+                      disabled={!isPermitted}
+                      onClick={() => {
+                        if (isPermitted) {
+                          setActiveMenu(alert.targetMenu);
+                          setIsAlertsOpen(false);
+                        }
+                      }}
+                      className={`w-full p-3.5 rounded-xl border ${cardBorder} flex flex-col gap-2.5 text-left transition-all duration-150 relative group ${isPermitted ? 'cursor-pointer hover:shadow-xs active:scale-[0.99]' : 'opacity-70 cursor-not-allowed'}`}
+                      title={isPermitted ? `Klik untuk membuka ${alert.actionLabel}` : 'Anda tidak memiliki hak akses'}
+                    >
+                      <div className="flex items-start space-x-2.5">
+                        <span className={`p-1.5 rounded-lg text-xs font-bold leading-none ${iconColor}`}>
+                          ⚠️
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-extrabold text-slate-900 leading-none group-hover:text-indigo-900 transition-colors">{alert.title}</p>
+                          <p className="text-slate-500 font-normal leading-relaxed mt-1 text-[11px]">{alert.desc}</p>
+                        </div>
+                      </div>
+
+                      {isPermitted ? (
+                        <div className="flex items-center justify-between mt-0.5 pt-2 border-t border-dashed border-slate-200/60 w-full">
+                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black tracking-wide uppercase ${badgeColor} inline-flex items-center space-x-1`}>
+                            <span>{alert.actionLabel}</span>
+                          </span>
+                          <span className="text-[10px] font-bold text-indigo-600 flex items-start space-x-0.5 group-hover:translate-x-0.5 transition-transform">
+                            <span>Kelola</span>
+                            <span>➔</span>
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="text-[9px] text-slate-400 italic">Terisolasi (Hak akses terbatas)</div>
+                      )}
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>
 
           <button 
             onClick={() => setIsAlertsOpen(false)}
-            className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded transition flex items-center justify-center"
+            className="w-full py-3 mt-4 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl transition flex items-center justify-center cursor-pointer shadow-3xs"
           >
-            Tutup Panel
+            Tutup Panel Peringatan
           </button>
         </div>
       )}
