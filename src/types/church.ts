@@ -34,6 +34,7 @@ export interface User {
   gender?: 'L' | 'P';
   talents?: string; // Minat Pelayanan / Karunia Rohani
   registrationReason?: string; // Alasan & Motivasi mendaftar
+  customMenus?: string[]; // Custom assigned menus by Gembala
 }
 
 export interface PastoralNote {

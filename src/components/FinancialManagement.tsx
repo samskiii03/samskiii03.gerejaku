@@ -46,6 +46,8 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
   const approvalsList = db.getApprovals();
   const pockets = db.getPockets(currentUser.churchId);
 
+  const canManageFinance = currentUser.role === 'GEMBALA' || currentUser.role === 'PENGURUS' || currentUser.customMenus?.includes('finance');
+
   // Calculate individual balance of pockets
   const pocketBalances = pockets.map(pocket => {
     // For general pocket compatibility fallback
@@ -230,7 +232,7 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
             <span>Unduh Laporan (.csv)</span>
           </button>
           
-          {(currentUser.role === 'GEMBALA' || currentUser.role === 'PENGURUS') && (
+          {canManageFinance && (
             <button 
               onClick={() => setIsAddOpen(true)}
               className="flex items-center space-x-2 px-4 py-2 bg-[#0f172a] hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition shadow-xs"
@@ -315,7 +317,7 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
             </h3>
             <p className="text-[11px] text-slate-500">Saldo dipisahkan per kategori kantong kas agar dana pelayanan pembangunan / sosial tetap terarah.</p>
           </div>
-          {(currentUser.role === 'GEMBALA' || currentUser.role === 'PENGURUS') && (
+          {canManageFinance && (
             <button
               onClick={() => setIsAddPocketOpen(true)}
               className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold transition flex items-center space-x-1 border border-emerald-200 cursor-pointer"
@@ -348,7 +350,7 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
                       {isSystem ? '🟢 KANTONG SISTEM' : '🟡 KANTONG LOKAL'}
                     </span>
                     
-                    {!isSystem && (currentUser.role === 'GEMBALA' || currentUser.role === 'PENGURUS') && (
+                    {!isSystem && canManageFinance && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -389,7 +391,7 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
             );
           })}
           
-          {(currentUser.role === 'GEMBALA' || currentUser.role === 'PENGURUS') && (
+          {canManageFinance && (
             <div 
               onClick={() => setIsAddPocketOpen(true)}
               className="p-4 rounded-xl border border-dashed border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50/50 cursor-pointer flex flex-col items-center justify-center text-center space-y-1 transition min-h-[120px]"
@@ -562,7 +564,7 @@ export default function FinancialManagement({ currentUser, onRefreshTrail }: Fin
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-center">
-                      {(currentUser.role === 'GEMBALA' || currentUser.role === 'PENGURUS') && (
+                      {canManageFinance && (
                         <button 
                           onClick={() => handleDelete(t.id)}
                           className="p-1 text-slate-400 hover:text-rose-600 rounded transition"

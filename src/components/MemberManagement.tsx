@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Member, User, PastoralNote, FollowUpRecord } from '../types/church';
 import { db } from '../utils/storage';
+import StaffPermissions from './StaffPermissions';
 import { 
   Search, Filter, Plus, FileText, Phone, MapPin, Calendar, 
   Trash2, RotateCcw, AlertTriangle, ArrowUpRight, HelpCircle, UserCheck, 
@@ -23,7 +24,7 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [filterSector, setFilterSector] = useState<string>('ALL');
-  const [activeSubTab, setActiveSubTab] = useState<'DATABASE' | 'FOLLOW_UP' | 'VERIF_USER' | 'ANALYSIS'>('DATABASE');
+  const [activeSubTab, setActiveSubTab] = useState<'DATABASE' | 'FOLLOW_UP' | 'VERIF_USER' | 'ANALYSIS' | 'STAFF_PERMISSIONS'>('DATABASE');
   
   // Active selected member for detailed profile drawer
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -72,6 +73,8 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
 
   // Selected church pending self-registered users awaiting branch pastor (Gembala) verification
   const pendingUsers = db.getUsers().filter(u => u.churchId === currentUser.churchId && u.isVerified === false);
+
+  const canManageMembers = currentUser.role === 'GEMBALA' || currentUser.role === 'PENGURUS' || currentUser.customMenus?.includes('members');
 
   const handleVerifyUser = (userId: string, fullName: string) => {
     if (confirm(`Apakah Anda yakin ingin menyetujui & memverifikasi akun "${fullName}"?\n\nTindakan ini akan:\n1. Mengaktifkan akun sehingga yang bersangkutan dapat langsung login dengan sandinya.\n2. Secara otomatis mengintegrasikan & mengimpor data dirinya ke dalam Database Jemaat (Kategori Inti).`)) {
@@ -338,7 +341,7 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
             <span>Recycle Bin ({deletedMembers.length})</span>
           </button>
           
-          {(currentUser.role === 'GEMBALA' || currentUser.role === 'PENGURUS') && (
+          {canManageMembers && (
             <button 
               onClick={() => { resetForm(); setIsCreateOpen(true); }}
               className="flex items-center space-x-2 px-4 py-2 bg-[#0f172a] hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition shadow-xs"
@@ -375,6 +378,14 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
                 {pendingUsers.length}
               </span>
             )}
+          </button>
+        )}
+        {currentUser.role === 'GEMBALA' && (
+          <button
+            onClick={() => setActiveSubTab('STAFF_PERMISSIONS')}
+            className={`flex items-center space-x-1.5 px-4 py-2.5 text-xs font-bold border-b-2 tracking-tight transition duration-150 relative cursor-pointer whitespace-nowrap ${activeSubTab === 'STAFF_PERMISSIONS' ? 'border-slate-900 text-slate-900 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+          >
+            <span>🔑 Otorisasi Hak Akses</span>
           </button>
         )}
         <button
@@ -557,7 +568,7 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
                 </div>
 
                 <div className="flex space-x-2">
-                  {(currentUser.role === 'GEMBALA' || currentUser.role === 'PENGURUS') && (
+                  {canManageMembers && (
                     <>
                       <button 
                         onClick={() => handleOpenEdit(selectedMember)}
@@ -807,6 +818,10 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
 
       {activeSubTab === 'ANALYSIS' && (
         <AnalysisSection />
+      )}
+
+      {activeSubTab === 'STAFF_PERMISSIONS' && (
+        <StaffPermissions currentUser={currentUser} onRefresh={triggerRefresh} />
       )}
 
       {/* --- MODALS & WORKFLOW DRAWERS --- */}

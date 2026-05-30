@@ -111,6 +111,15 @@ export default function App() {
       { id: 'pending', name: 'Tugas & Verifikasi Pending', icon: <CheckSquare className="w-4 h-4 shrink-0" />, desc: 'Antrean verifikasi akun pendaftar, checklist tugas persiapan, & approval' },
       { id: 'audit', name: 'Audit Log & Rollback', icon: <History className="w-4 h-4 shrink-0" />, desc: 'Catetan log audit trail, verifikasi aktivitas, & fitur pemulihan' }
     ].filter(menu => {
+      // Allow dynamic customMenu overrides for local users granted by Gembala
+      if (effectiveRole !== 'SUPER_ADMIN' && effectiveRole !== 'GEMBALA') {
+        const syncedUser = db.getUsers().find(u => u.id === currentUser.id);
+        const customMenus = syncedUser?.customMenus || currentUser.customMenus;
+        if (customMenus && customMenus.includes(menu.id)) {
+          return true;
+        }
+      }
+
       const dbMenu = [
         { id: 'dashboard', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
         { id: 'members', roles: ['GEMBALA', 'PENGURUS'] },
