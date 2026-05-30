@@ -392,7 +392,7 @@ export default function App() {
   const inactiveCount = activeMembers.filter(m => m.activityScore < 40).length;
   const newMembersCount = activeMembers.filter(m => m.category === 'BARU').length;
   const pendingApprovalsCount = db.getApprovals().filter(a => a.status === 'SUBMITTED').length;
-  const pendingUsersCount = currentUser ? db.getUsers().filter(u => u.churchId === (effectiveUser || currentUser)?.churchId && !u.isVerified).length : 0;
+  const pendingUsersCount = currentUser ? db.getUsers().filter(u => u.churchId === (effectiveUser || currentUser)?.churchId && u.isVerified === false).length : 0;
 
   if (inactiveCount > 0) {
     computedAlerts.push({
