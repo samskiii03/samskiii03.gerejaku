@@ -14,6 +14,7 @@ interface StaffPermissionsProps {
 const AVAILABLE_MENUS = [
   { id: 'dashboard', name: 'Dasbor Analytics', desc: 'Ringkasan jemaat, absensi mingguan, & info penting.' },
   { id: 'members', name: 'Database Jemaat', desc: 'Akses melihat & mengelola list data jemaat aktif/pasif.' },
+  { id: 'attendance', name: 'Presensi & Kehadiran', desc: 'Akses melakukan pencatatan absensi jemaat, pelayan di ibadah, & staf.' },
   { id: 'services', name: 'Pelayanan & Jadwal', desc: 'Mengatur penugasan liturgis, pelayan altar, & musik.' },
   { id: 'approvals', name: 'Approval Workflow', desc: 'Mengajukan & mereview draf anggaran departemen.' },
   { id: 'finance', name: 'Buku Kas & Anggaran', desc: 'Pencatatan pemasukan, persepuluhan, & pengeluaran jemaat.' },

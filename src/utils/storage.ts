@@ -6,7 +6,7 @@
 import { 
   Church, User, Member, Division, ApprovalRequest, 
   Transaction, Task, SundaySchoolKid, SundaySchoolClass, AuditTrail,
-  ServiceType, ServiceSchedule, FinancialPocket
+  ServiceType, ServiceSchedule, FinancialPocket, CustomApprovalWorkflow
 } from '../types/church';
 
 // Storage keys
@@ -686,6 +686,7 @@ export interface SystemData {
   approvals: ApprovalRequest[];
   transactions: Transaction[];
   pockets?: FinancialPocket[];
+  customWorkflows?: CustomApprovalWorkflow[];
   tasks: Task[];
   kids: SundaySchoolKid[];
   classes: SundaySchoolClass[];
@@ -709,6 +710,7 @@ const EMPTY_SYSTEM_STATE: SystemData = {
   approvals: [],
   transactions: [],
   pockets: [],
+  customWorkflows: [],
   tasks: [],
   kids: [],
   classes: [],
@@ -731,6 +733,7 @@ const DEMO_SYSTEM_STATE: SystemData = {
   approvals: MOCK_APPROVALS,
   transactions: MOCK_FINANCE,
   pockets: MOCK_POCKETS,
+  customWorkflows: [],
   tasks: MOCK_TASKS,
   kids: MOCK_KIDS,
   classes: MOCK_CLASSES,
@@ -1190,6 +1193,43 @@ class DatabaseEngine {
     return this.data.approvals || [];
   }
 
+  public getCustomWorkflows(churchId: string): CustomApprovalWorkflow[] {
+    if (!this.data.customWorkflows) this.data.customWorkflows = [];
+    return this.data.customWorkflows.filter(w => w.churchId === churchId);
+  }
+
+  public addCustomWorkflow(wf: CustomApprovalWorkflow, updater: User) {
+    if (!this.data.customWorkflows) this.data.customWorkflows = [];
+    this.data.customWorkflows.push(wf);
+    this.logAudit(updater.id, updater.fullName, 'WF_ADD', `Menambahkan alur kerja kustom baru: ${wf.name}`, null, wf);
+    this.persist();
+  }
+
+  public updateCustomWorkflow(wf: CustomApprovalWorkflow, updater: User) {
+    if (!this.data.customWorkflows) this.data.customWorkflows = [];
+    const idx = this.data.customWorkflows.findIndex(w => w.id === wf.id);
+    const prev = idx !== -1 ? this.data.customWorkflows[idx] : null;
+
+    if (idx !== -1) {
+      this.data.customWorkflows[idx] = wf;
+      this.logAudit(updater.id, updater.fullName, 'WF_EDIT', `Mengubah alur kerja kustom: ${wf.name}`, prev, wf);
+      this.persist();
+    }
+  }
+
+  public deleteCustomWorkflow(wfId: string, updater: User): boolean {
+    if (!this.data.customWorkflows) this.data.customWorkflows = [];
+    const idx = this.data.customWorkflows.findIndex(w => w.id === wfId);
+    if (idx !== -1) {
+      const wf = this.data.customWorkflows[idx];
+      this.data.customWorkflows.splice(idx, 1);
+      this.logAudit(updater.id, updater.fullName, 'WF_DELETE', `Menghapus alur kerja kustom: ${wf.name}`, wf, null);
+      this.persist();
+      return true;
+    }
+    return false;
+  }
+
   public addApproval(req: ApprovalRequest, updater: User) {
     if (!this.data.approvals) this.data.approvals = [];
     this.data.approvals.push(req);
@@ -1465,6 +1505,41 @@ class DatabaseEngine {
 
   public getRecycleMembers(): Member[] {
     return this.data.recycleBin?.members || [];
+  }
+
+  public toggleMemberAttendance(memberId: string, date: string, updater: User): boolean {
+    const index = this.data.members.findIndex(m => m.id === memberId);
+    if (index !== -1) {
+      const member = this.data.members[index];
+      if (!member.attendanceHistory) member.attendanceHistory = {};
+      const nextVal = !member.attendanceHistory[date];
+      member.attendanceHistory[date] = nextVal;
+      
+      // Recalculate activity score based on logged sessions in history
+      const historyVals = Object.values(member.attendanceHistory);
+      const presents = historyVals.filter(v => v === true).length;
+      member.activityScore = historyVals.length > 0 ? Math.round((presents / historyVals.length) * 100) : 100;
+
+      this.logAudit(updater.id, updater.fullName, 'MEMBER_ATTENDANCE', `Mengubah kehadiran jemaat ${member.name} tanggal ${date}: ${nextVal ? 'HADIR' : 'ABSEN'}`, null, null);
+      this.persist();
+      return nextVal;
+    }
+    return false;
+  }
+
+  public toggleUserAttendance(userId: string, date: string, updater: User): boolean {
+    if (!this.data.users) this.data.users = [];
+    const index = this.data.users.findIndex(u => u.id === userId);
+    if (index !== -1) {
+      const user = this.data.users[index];
+      if (!user.attendanceHistory) user.attendanceHistory = {};
+      const nextVal = !user.attendanceHistory[date];
+      user.attendanceHistory[date] = nextVal;
+      this.logAudit(updater.id, updater.fullName, 'STAF_ATTENDANCE', `Mengubah kehadiran pelayan/staf ${user.fullName} tanggal ${date}: ${nextVal ? 'HADIR' : 'ABSEN'}`, null, null);
+      this.persist();
+      return nextVal;
+    }
+    return false;
   }
 }
 

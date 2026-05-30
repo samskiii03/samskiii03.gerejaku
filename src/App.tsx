@@ -20,6 +20,7 @@ import KPICard from './components/KPICard';
 import { CustomDonutChart, CustomLineChart } from './components/CustomChart';
 import ServiceManagement from './components/ServiceManagement';
 import PendingItems from './components/PendingItems';
+import AttendanceHub from './components/AttendanceHub';
 
 // Lucide Icons
 import { 
@@ -27,7 +28,7 @@ import {
   RotateCcw, History, ShieldAlert, BadgeCheck, LogOut, LayoutDashboard, 
   Bell, HelpCircle, ArrowRight, UserPlus, FileText, Settings, Key, 
   Menu, X, CheckCircle, Info, ChevronRight, CheckCircle2, Calendar, CheckSquare,
-  Camera, Upload
+  Camera, Upload, UserCheck
 } from 'lucide-react';
 
 export default function App() {
@@ -102,6 +103,7 @@ export default function App() {
     ] : [
       { id: 'dashboard', name: 'Dasbor Analytics', icon: <LayoutDashboard className="w-4 h-4 shrink-0" />, desc: 'Ringkasan performa jemaat, grafik kehadiran, & info penting' },
       { id: 'members', name: 'Database Jemaat', icon: <Users className="w-4 h-4 shrink-0" />, desc: 'Kelola dan klasifikasi data jemaat aktif, pasif, remaja & lansia' },
+      { id: 'attendance', name: 'Presensi & Kehadiran', icon: <UserCheck className="w-4 h-4 shrink-0" />, desc: 'Pencatatan kehadiran jemaat, pelayan di ibadah, & staf pengurus gereja' },
       { id: 'services', name: 'Pelayanan & Jadwal', icon: <Calendar className="w-4 h-4 shrink-0" />, desc: 'Jadwalkan pelayan mimbar, petugas musik, perlengkapan & liturgis' },
       { id: 'approvals', name: 'Approval Workflow', icon: <ListChecks className="w-4 h-4 shrink-0" />, desc: 'Persetujuan proposal divisi pelayanan, inventaris & anggaran dana' },
       { id: 'finance', name: 'Buku Kas & Anggaran', icon: <Landmark className="w-4 h-4 shrink-0" />, desc: 'Metrik akuntansi double-entry, persepuluhan, pemasukan & pengeluaran' },
@@ -123,6 +125,7 @@ export default function App() {
       const dbMenu = [
         { id: 'dashboard', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
         { id: 'members', roles: ['GEMBALA', 'PENGURUS'] },
+        { id: 'attendance', roles: ['GEMBALA', 'PENGURUS'] },
         { id: 'services', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
         { id: 'approvals', roles: ['GEMBALA', 'PENGURUS', 'PELAYAN'] },
         { id: 'finance', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
@@ -1346,6 +1349,10 @@ export default function App() {
                 {/* Sub routing blocks */}
                 {activeMenu === 'members' && (
                   <MemberManagement currentUser={effectiveUser || currentUser} onRefreshTrail={() => setSeed(s => s + 1)} />
+                )}
+
+                {activeMenu === 'attendance' && (
+                  <AttendanceHub currentUser={effectiveUser || currentUser} onRefreshTrail={() => setSeed(s => s + 1)} />
                 )}
 
                 {activeMenu === 'finance' && (

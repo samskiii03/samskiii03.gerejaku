@@ -35,6 +35,7 @@ export interface User {
   talents?: string; // Minat Pelayanan / Karunia Rohani
   registrationReason?: string; // Alasan & Motivasi mendaftar
   customMenus?: string[]; // Custom assigned menus by Gembala
+  attendanceHistory?: Record<string, boolean>; // date string -> present
 }
 
 export interface PastoralNote {
@@ -135,6 +136,8 @@ export interface ApprovalRequest {
   history?: AuditTrail[];
   revisionNote?: string;
   attachments?: string[];
+  customWorkflowId?: string;
+  currentStepIndex?: number;
 }
 
 export interface Transaction {
@@ -250,3 +253,17 @@ export interface ServiceSchedule {
   status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
   notes?: string;
 }
+
+export interface CustomApprovalWorkflow {
+  id: string;
+  name: string;
+  description: string;
+  churchId: string;
+  type: ApprovalType;
+  steps: string[]; // custom workflows steps: e.g. ["Diajukan", "Pemeriksaan Keuangan", "Approval Gembala"]
+  requireBudgetLimit: boolean;
+  maxAmount?: number;
+  autoLogFinance?: boolean;
+  pocketId?: string;
+}
+
