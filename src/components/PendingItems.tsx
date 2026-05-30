@@ -15,12 +15,19 @@ import {
 interface PendingItemsProps {
   currentUser: User;
   onRefreshTrail: () => void;
+  defaultTab?: 'USERS' | 'APPROVALS' | 'TASKS';
 }
 
 type ActiveCategory = 'USERS' | 'APPROVALS' | 'TASKS';
 
-export default function PendingItems({ currentUser, onRefreshTrail }: PendingItemsProps) {
-  const [activeTab, setActiveTab] = useState<ActiveCategory>('TASKS');
+export default function PendingItems({ currentUser, onRefreshTrail, defaultTab = 'TASKS' }: PendingItemsProps) {
+  const [activeTab, setActiveTab] = useState<ActiveCategory>(defaultTab);
+
+  React.useEffect(() => {
+    if (defaultTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [defaultTab]);
   const [refreshSeed, setRefreshSeed] = useState(0);
 
   // Modal feedback for approvals

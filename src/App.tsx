@@ -83,6 +83,9 @@ export default function App() {
   const [avatarInputUrl, setAvatarInputUrl] = useState('');
   const [dragOver, setDragOver] = useState(false);
 
+  // Pending default tab redirect
+  const [pendingDefaultTab, setPendingDefaultTab] = useState<'USERS' | 'APPROVALS' | 'TASKS' | undefined>(undefined);
+
   // Auditing context simulation parameters
   const effectiveRole = (currentUser?.role === 'SUPER_ADMIN' && auditedChurchId) ? 'GEMBALA' : currentUser?.role;
   const effectiveChurchId = (currentUser?.role === 'SUPER_ADMIN' && auditedChurchId) ? auditedChurchId : currentUser?.churchId;
@@ -375,7 +378,16 @@ export default function App() {
   const churchThemeColor = activeChurch?.themeColor || '#0f172a';
 
   // Smart Alert generation
-  const computedAlerts = [];
+  interface SystemAlert {
+    id: string;
+    title: string;
+    desc: string;
+    type: 'WARNING' | 'DANGER' | 'INFO';
+    targetMenu: string;
+    targetSubTab?: 'USERS' | 'APPROVALS' | 'TASKS';
+    actionLabel: string;
+  }
+  const computedAlerts: SystemAlert[] = [];
   const activeMembers = db.getMembers();
   const inactiveCount = activeMembers.filter(m => m.activityScore < 40).length;
   const newMembersCount = activeMembers.filter(m => m.category === 'BARU').length;
@@ -419,6 +431,7 @@ export default function App() {
       desc: `Terdapat ${pendingUsersCount} pendaftar baru yang menunggu persetujuan & integrasi database.`,
       type: 'WARNING',
       targetMenu: 'pending',
+      targetSubTab: 'USERS',
       actionLabel: 'Verifikasi Akun Baru'
     });
   }
@@ -1354,6 +1367,7 @@ export default function App() {
                   <PendingItems 
                     currentUser={effectiveUser || currentUser} 
                     onRefreshTrail={() => setSeed(s => s + 1)} 
+                    defaultTab={pendingDefaultTab}
                   />
                 )}
 
@@ -1426,6 +1440,9 @@ export default function App() {
                       disabled={!isPermitted}
                       onClick={() => {
                         if (isPermitted) {
+                          if (alert.targetSubTab) {
+                            setPendingDefaultTab(alert.targetSubTab);
+                          }
                           setActiveMenu(alert.targetMenu);
                           setIsAlertsOpen(false);
                         }
