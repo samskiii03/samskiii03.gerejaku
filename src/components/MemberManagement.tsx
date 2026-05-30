@@ -700,7 +700,7 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
               <h4 className="font-extrabold text-indigo-950 uppercase tracking-tight">Otoritas Verifikasi Gembala Sidang</h4>
               <p className="font-light leading-relaxed">
                 Di bawah ini adalah daftar pendaftar mandiri (Pelayan Jemaat, Kepala Departemen, & Pengurus Gereja) yang memilih cabang gereja Anda. 
-                Sesuai kebijakan sistem, verifikasi dilakukan secara desentralisasi oleh <strong>Gembala Sidang setempat</strong>, bukan Synode Pusat. 
+                Sesuai kebijakan sistem, verifikasi dilakukan secara desentralisasi oleh <strong>Gembala Sidang setempat</strong>, bukan Yayasan Pusat. 
                 Setelah Anda mengklik <strong>Setujui & Integrasikan</strong>, akun login mereka akan langsung aktif dan data dirinya otomatis masuk sebagai <strong>Jemaat Inti</strong> di database jemaat.
               </p>
             </div>

@@ -92,7 +92,7 @@ function getFallbackCurriculum(className: string, ageRange: string): string {
   }
 
   return `### 📖 KURIKULUM RESMI SEKOLAH MINGGU
-*Visual Layout Terakreditasi Synod Pusat*
+*Visual Layout Terakreditasi Kantor Pusat*
 
 ---
 

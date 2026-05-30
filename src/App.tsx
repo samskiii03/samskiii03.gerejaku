@@ -287,7 +287,7 @@ export default function App() {
     db.createChurch(nChurch, nUser);
     db.createUser(nUser);
     
-    alert("Registrasi Berhasil! Cabang gereja Anda masuk dalam antrean verifikasi Synode Pusat. Silakan login menggunakan akun Gembala yang baru saja dibuat.");
+    alert("Registrasi Berhasil! Cabang gereja Anda masuk dalam antrean verifikasi Yayasan Pusat. Silakan login menggunakan akun Gembala yang baru saja dibuat.");
     setIsRegisterChurch(false);
     
     // Clear registration forms
@@ -370,7 +370,7 @@ export default function App() {
     }
   };
 
-  // Dynamic colors matching Synod pusat specifications
+  // Dynamic colors matching church network specifications
   const activeChurch = db.getChurches().find(c => c.id === effectiveUser?.churchId) || db.getChurches()[0];
   const churchThemeColor = activeChurch?.themeColor || '#0f172a';
 
@@ -519,7 +519,7 @@ export default function App() {
                 <span className="text-[#0f172a] underline decoration-slate-300 decoration-wavy">Untuk Pelayanan Gereja</span>
               </h2>
               <p className="text-base max-w-2xl mx-auto text-slate-500 font-normal leading-relaxed">
-                Platform management gereja yang stabil, jelas, aman, dan mudah digunakan untuk koordinasi penggembalaan jemaat, tata kelola keuangan terbuka, verifikasi synode pusat, sekolah minggu, serta pelaporan log audit digital.
+                Platform management gereja yang stabil, jelas, aman, dan mudah digunakan untuk koordinasi penggembalaan jemaat, tata kelola keuangan terbuka, verifikasi yayasan pusat, sekolah minggu, serta pelaporan log audit digital.
               </p>
             </div>
 
@@ -548,7 +548,7 @@ export default function App() {
                   <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                   <div className="text-xs">
                     <span className="font-extrabold uppercase tracking-wider block text-amber-400">Pengamanan Isolat Multi-Tenant</span>
-                    <p className="font-light text-slate-300 leading-relaxed">Seluruh role login terpisah sekuritas total. Gembala, pengurus, pelayan, dan super admin pusat synode diisolasi tanpa kebocoran data lintasan gereja lokal.</p>
+                    <p className="font-light text-slate-300 leading-relaxed">Seluruh role login terpisah sekuritas total. Gembala, pengurus, pelayan, dan super admin kantor pusat diisolasi tanpa kebocoran data lintasan gereja lokal.</p>
                   </div>
                 </div>
               </div>
@@ -1065,7 +1065,7 @@ export default function App() {
               <div className="pt-4 border-t border-slate-900 space-y-3">
                 <div className="bg-slate-900/60 p-3 rounded-xl text-[10px] text-slate-400 text-center font-semibold border border-slate-800/40">
                   <span className="block text-slate-500 text-[9px] uppercase tracking-widest font-black">Cabang Terhubung</span>
-                  <span className="block font-bold text-slate-300 truncate mt-0.5">⛪ {activeChurch?.name || 'Synode Admin Sektor'}</span>
+                  <span className="block font-bold text-slate-300 truncate mt-0.5">⛪ {activeChurch?.name || 'Kantor Wilayah Sektor'}</span>
                 </div>
                 
                 <button 
@@ -1558,7 +1558,7 @@ export default function App() {
 
       {/* 5. Footer credits with legal info */}
       <footer className="bg-slate-900 border-t border-slate-950 px-6 py-3 shrink-0 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400">
-        <span>© 2026 Meta Connect — Jaringan Kemartiran Keuskupan Synod Pusat. All rights reserved.</span>
+        <span>© 2026 Meta Connect — Jaringan Komunitas Keuskupan Agung Pusat. Semua hak dilindungi undang-undang.</span>
         <div className="flex items-center space-x-3 mt-1 sm:mt-0 font-medium">
           <span className="flex items-center space-x-1 text-slate-500">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>

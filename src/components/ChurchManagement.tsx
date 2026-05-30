@@ -227,7 +227,7 @@ export default function ChurchManagement({ currentUser, onRefreshTrail, onStartI
 
     // STRICT LOGO REQUIREMENT CHECK
     if (!formLogo) {
-      setLogoError('Lampiran Berkas Logo Wajib Diunggah Guna Legalitas Synode!');
+      setLogoError('Lampiran Berkas Logo Wajib Diunggah Guna Legalitas Yayasan!');
       return;
     }
 
@@ -484,14 +484,14 @@ export default function ChurchManagement({ currentUser, onRefreshTrail, onStartI
   return (
     <div key={refreshSeed} className="space-y-6">
       
-      {/* 1. Header Banner Title with Synod Identity */}
+      {/* 1. Header Banner Title with Pusat Identity */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
         <div className="flex items-start space-x-3.5">
           <div className="p-3 bg-indigo-600 rounded-xl text-white">
             <ShieldCheck className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-black tracking-tight text-slate-900 leading-tight">Sinode Pusat & Komando Jaringan Nasional</h2>
+            <h2 className="text-xl font-black tracking-tight text-slate-900 leading-tight">Yayasan Pusat & Komando Jaringan Nasional</h2>
             <p className="text-xs text-slate-500 font-normal leading-relaxed mt-1">
               Portal supervisi legalitas, kredensial pimpinan cabang, kustomisasi visual (Logo & Tema Warna), serta konsolidasi sinergi statistik multi-tenant.
             </p>
@@ -501,7 +501,7 @@ export default function ChurchManagement({ currentUser, onRefreshTrail, onStartI
         <div className="flex flex-col items-end shrink-0">
           <div className="flex items-center space-x-1 px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-lg text-[10px] font-bold select-none font-mono tracking-wider uppercase">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Pusat Synod Authorized</span>
+            <span>Kantor Pusat Authorized</span>
           </div>
           <span className="text-[10px] text-slate-400 mt-1.5 font-mono">ID Sidang: {currentUser.id}</span>
         </div>
@@ -864,7 +864,7 @@ export default function ChurchManagement({ currentUser, onRefreshTrail, onStartI
                                   <span>{userChurch.name}</span>
                                 </div>
                               ) : (
-                                <span className="text-indigo-600 font-bold font-mono text-[9px] tracking-wide uppercase px-2 py-0.5 bg-indigo-50 border border-indigo-100 rounded-full">Synod Pusat</span>
+                                <span className="text-indigo-600 font-bold font-mono text-[9px] tracking-wide uppercase px-2 py-0.5 bg-indigo-50 border border-indigo-100 rounded-full">Yayasan Pusat</span>
                               )}
                             </td>
                             <td className="p-4 whitespace-nowrap">
@@ -955,7 +955,7 @@ export default function ChurchManagement({ currentUser, onRefreshTrail, onStartI
                   value={selfFullName}
                   onChange={(e) => setSelfFullName(e.target.value)}
                   className="w-full p-2.5 bg-slate-50 border border-slate-205 rounded-lg focus:bg-white outline-none font-semibold text-slate-900"
-                  placeholder="Ketik nama lengkap Gembala Synod"
+                  placeholder="Ketik nama lengkap Gembala Sidang"
                 />
               </div>
 
@@ -966,7 +966,7 @@ export default function ChurchManagement({ currentUser, onRefreshTrail, onStartI
                   value={selfEmail}
                   onChange={(e) => setSelfEmail(e.target.value)}
                   className="w-full p-2.5 bg-slate-50 border border-slate-205 rounded-lg focus:bg-white outline-none text-slate-900"
-                  placeholder="nama@synod.org"
+                  placeholder="nama@kantorpusat.org"
                 />
               </div>
 
@@ -1010,7 +1010,7 @@ export default function ChurchManagement({ currentUser, onRefreshTrail, onStartI
       {activeTab === 'analytics' && (
         <div className="space-y-6">
           
-          {/* Demographic Categorization across the whole Synod */}
+          {/* Demographic Categorization across the whole Church Network */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* National classification list */}
@@ -1087,10 +1087,10 @@ export default function ChurchManagement({ currentUser, onRefreshTrail, onStartI
           <div className="bg-slate-50 border border-slate-250 p-5 rounded-xl text-xs space-y-2 text-slate-750">
             <h4 className="font-extrabold text-slate-900 uppercase tracking-wide flex items-center space-x-1.5">
               <ShieldAlert className="w-4 h-4 text-slate-500" />
-              <span>Standar Keamanan Isolat Multi-Tenant Synode</span>
+              <span>Standar Keamanan Isolat Multi-Tenant Kantor Pusat</span>
             </h4>
             <p className="font-light leading-relaxed">
-              Seluruh data terintegrasi secara modular. Pusat Synode memiliki hak baca ringkasan statistik (aggregate data), menyahuti legalitas ijin login, membekukan (suspend) akses operasional pimpinan daerah, serta mengubah logo dan kode tema representasi visual masing-masing cabang demi keselarasan visi gereja nasional.
+              Seluruh data terintegrasi secara modular. Kantor Pusat memiliki hak baca ringkasan statistik (aggregate data), menyahuti legalitas ijin login, membekukan (suspend) akses operasional pimpinan daerah, serta mengubah logo dan kode tema representasi visual masing-masing cabang demi keselarasan visi gereja nasional.
             </p>
           </div>
 
@@ -1458,7 +1458,7 @@ export default function ChurchManagement({ currentUser, onRefreshTrail, onStartI
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none text-xs text-slate-900 focus:bg-white font-semibold disabled:opacity-50"
                   >
                     {creRole === 'SUPER_ADMIN' ? (
-                      <option value="">-- Synod Pusat --</option>
+                      <option value="">-- Kantor Pusat --</option>
                     ) : (
                       <>
                         <option value="">-- Pilih Cabang --</option>
@@ -1605,7 +1605,7 @@ export default function ChurchManagement({ currentUser, onRefreshTrail, onStartI
                     onChange={(e) => setRepairChurchId(e.target.value)}
                     className="w-full p-2.5 bg-slate-50 border border-slate-205 rounded-lg focus:bg-white outline-none font-semibold text-slate-805"
                   >
-                    <option value="">-- Synod Pusat (Administrasi Nasional) --</option>
+                    <option value="">-- Kantor Pusat (Administrasi Nasional) --</option>
                     {churches.map(c => (
                       <option key={c.id} value={c.id}>{c.name} ({c.city})</option>
                     ))}

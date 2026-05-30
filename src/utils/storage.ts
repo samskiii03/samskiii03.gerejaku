@@ -31,7 +31,7 @@ const MOCK_CHURCHES: Church[] = [
   },
   {
     id: 'c2',
-    name: 'Kalam Hidup Grace Synod',
+    name: 'Kalam Hidup Grace Center',
     address: 'Jl. Jendral Sudirman Kav 21',
     city: 'Bandung',
     province: 'Jawa Barat',
@@ -62,7 +62,7 @@ const MOCK_USERS: User[] = [
     id: 'u-super',
     username: 'superadmin',
     fullName: 'Pdt. Dr. Andreas Prasetya (Pusat)',
-    email: 'pdt.andreas@synode-metaconnect.org',
+    email: 'pdt.andreas@pusat-metaconnect.org',
     role: 'SUPER_ADMIN',
     churchId: 'c1',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
@@ -702,7 +702,7 @@ export interface SystemData {
 
 // Complete empty system state for Real Mode
 const EMPTY_SYSTEM_STATE: SystemData = {
-  churches: MOCK_CHURCHES.slice(), // Keep synod databases or starts empty
+  churches: MOCK_CHURCHES.slice(), // Keep branch databases or starts empty
   users: MOCK_USERS.slice(), // Default accounts so users can log in first
   divisions: [],
   members: [],
