@@ -1,0 +1,97 @@
+{
+  "entities": {
+    "Church": {
+      "title": "Church",
+      "description": "Church configuration and metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "province": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "VERIFIED", "UNDER_REVIEW", "SUSPENDED", "REJECTED"] },
+        "logo": { "type": "string" },
+        "banner": { "type": "string" },
+        "themeColor": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "status"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Registered users and credentials",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["SUPER_ADMIN", "GEMBALA", "PENGURUS", "KEPALA_DIVISI", "PELAYAN"] },
+        "churchId": { "type": "string" },
+        "avatar": { "type": "string" },
+        "divisionId": { "type": "string" },
+        "password": { "type": "string" },
+        "isVerified": { "type": "boolean" },
+        "phone": { "type": "string" },
+        "gender": { "type": "string", "enum": ["L", "P"] },
+        "talents": { "type": "string" },
+        "registrationReason": { "type": "string" },
+        "customMenus": { "type": "array" },
+        "attendanceHistory": { "type": "object" }
+      },
+      "required": ["id", "username", "fullName", "email", "role", "churchId"]
+    },
+    "Member": {
+      "title": "Member",
+      "description": "Church congregation members",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "nickname": { "type": "string" },
+        "gender": { "type": "string", "enum": ["L", "P"] },
+        "birthPlace": { "type": "string" },
+        "birthDate": { "type": "string" },
+        "age": { "type": "number" },
+        "maritalStatus": { "type": "string", "enum": ["BELUM_MENIKAH", "MENIKAH", "JANDA_DUDA"] },
+        "spouseName": { "type": "string" },
+        "childrenNames": { "type": "array" },
+        "address": { "type": "string" },
+        "sector": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "education": { "type": "string" },
+        "occupation": { "type": "string" },
+        "joinDate": { "type": "string" },
+        "baptismStatus": { "type": "string", "enum": ["YA", "TIDAK"] },
+        "ministryStatus": { "type": "string", "enum": ["YA", "TIDAK"] },
+        "talents": { "type": "array" },
+        "category": { "type": "string", "enum": ["AKTIF", "KURANG_AKTIF", "PASIF", "BARU", "INTI", "LANSIA", "REMAJA", "PEMUDA"] },
+        "joinYear": { "type": "number" },
+        "activityScore": { "type": "number" },
+        "pastoralNotes": { "type": "array" },
+        "followUps": { "type": "array" },
+        "attachments": { "type": "array" },
+        "attendanceHistory": { "type": "object" },
+        "churchId": { "type": "string" }
+      },
+      "required": ["id", "name", "gender", "category", "joinYear", "activityScore"]
+    }
+  },
+  "firestore": {
+    "churches": {
+      "schema": "Church",
+      "description": "Collection of all registered churches"
+    },
+    "users": {
+      "schema": "User",
+      "description": "Collection of all system users"
+    },
+    "members": {
+      "schema": "Member",
+      "description": "Collection of all congregation members"
+    }
+  }
+}
