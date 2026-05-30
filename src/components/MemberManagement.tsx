@@ -10,7 +10,7 @@ import {
   Search, Filter, Plus, FileText, Phone, MapPin, Calendar, 
   Trash2, RotateCcw, AlertTriangle, ArrowUpRight, HelpCircle, UserCheck, 
   ChevronRight, Clipboard, Eye, PlusCircle, Sparkles, Clock, Heart, 
-  Send, Cake, LineChart, TrendingUp, Smile, Activity
+  Send, Cake, LineChart, TrendingUp, Smile, Activity, CheckCircle2, ShieldCheck, X
 } from 'lucide-react';
 
 interface MemberManagementProps {
@@ -23,7 +23,7 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [filterSector, setFilterSector] = useState<string>('ALL');
-  const [activeSubTab, setActiveSubTab] = useState<'DATABASE' | 'FOLLOW_UP' | 'ANALYSIS'>('DATABASE');
+  const [activeSubTab, setActiveSubTab] = useState<'DATABASE' | 'FOLLOW_UP' | 'VERIF_USER' | 'ANALYSIS'>('DATABASE');
   
   // Active selected member for detailed profile drawer
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -69,6 +69,23 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
 
   const members = db.getMembers();
   const deletedMembers = db.getRecycleMembers();
+
+  // Selected church pending self-registered users awaiting branch pastor (Gembala) verification
+  const pendingUsers = db.getUsers().filter(u => u.churchId === currentUser.churchId && u.isVerified === false);
+
+  const handleVerifyUser = (userId: string, fullName: string) => {
+    if (confirm(`Apakah Anda yakin ingin menyetujui & memverifikasi akun "${fullName}"?\n\nTindakan ini akan:\n1. Mengaktifkan akun sehingga yang bersangkutan dapat langsung login dengan sandinya.\n2. Secara otomatis mengintegrasikan & mengimpor data dirinya ke dalam Database Jemaat (Kategori Inti).`)) {
+      db.verifyAndIntegrateUser(userId, currentUser);
+      triggerRefresh();
+    }
+  };
+
+  const handleRejectUser = (userId: string, fullName: string) => {
+    if (confirm(`⚠️ PERINGATAN: Apakah Anda yakin ingin MENOLAK & menghapus pendaftaran akun untuk "${fullName}"?\n\nTindakan ini akan menghapus draf pendaftaran dari antrean secara permanen.`)) {
+      db.rejectUserRegistration(userId, currentUser);
+      triggerRefresh();
+    }
+  };
 
   // Filter logic
   const filteredMembers = members.filter(member => {
@@ -343,10 +360,23 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
         </button>
         <button
           onClick={() => setActiveSubTab('FOLLOW_UP')}
-          className={`flex items-center space-x-1.5 px-4 py-2.5 text-xs font-bold border-b-2 tracking-tight transition duration-150 cursor-pointer whitespace-nowrap ${activeSubTab === 'FOLLOW_UP' ? 'border-slate-900 text-slate-900 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+          className={`flex items-center space-x-1.5 px-4 py-2.5 text-xs font-bold border-b-2 tracking-tight transition duration-150 cursor-pointer whitespace-nowrap ${activeSubTab === 'FOLLOW_UP' ? 'border-slate-900 text-slate-1000 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
         >
           <span>⚠️ Follow-Up Jemaat Pasif</span>
         </button>
+        {currentUser.role === 'GEMBALA' && (
+          <button
+            onClick={() => setActiveSubTab('VERIF_USER')}
+            className={`flex items-center space-x-1.5 px-4 py-2.5 text-xs font-bold border-b-2 tracking-tight transition duration-150 relative cursor-pointer whitespace-nowrap ${activeSubTab === 'VERIF_USER' ? 'border-slate-900 text-slate-900 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+          >
+            <span>👤 Verifikasi Pendaftar Baru</span>
+            {pendingUsers.length > 0 && (
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow-xs">
+                {pendingUsers.length}
+              </span>
+            )}
+          </button>
+        )}
         <button
           onClick={() => setActiveSubTab('ANALYSIS')}
           className={`flex items-center space-x-1.5 px-4 py-2.5 text-xs font-bold border-b-2 tracking-tight transition duration-150 cursor-pointer whitespace-nowrap ${activeSubTab === 'ANALYSIS' ? 'border-slate-900 text-slate-900 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
@@ -630,6 +660,86 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
 
       {activeSubTab === 'FOLLOW_UP' && (
         <FollowUpSection currentUser={currentUser} onRefresh={triggerRefresh} />
+      )}
+
+      {activeSubTab === 'VERIF_USER' && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl text-indigo-950 flex items-start space-x-3">
+            <ShieldCheck className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+            <div className="text-xs space-y-1">
+              <h4 className="font-extrabold text-indigo-950 uppercase tracking-tight">Otoritas Verifikasi Gembala Sidang</h4>
+              <p className="font-light leading-relaxed">
+                Di bawah ini adalah daftar pendaftar mandiri (Pelayan Jemaat, Kepala Departemen, & Pengurus Gereja) yang memilih cabang gereja Anda. 
+                Sesuai kebijakan sistem, verifikasi dilakukan secara desentralisasi oleh <strong>Gembala Sidang setempat</strong>, bukan Synode Pusat. 
+                Setelah Anda mengklik <strong>Setujui & Integrasikan</strong>, akun login mereka akan langsung aktif dan data dirinya otomatis masuk sebagai <strong>Jemaat Inti</strong> di database jemaat.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+            <div className="px-4 py-3 border-b bg-slate-50/50 flex items-center justify-between">
+              <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Antrean Verifikasi Jemaat & Pelayan Pelayanan ({pendingUsers.length})</span>
+            </div>
+
+            {pendingUsers.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 space-y-2 flex flex-col items-center justify-center">
+                <CheckCircle2 className="w-10 h-10 text-emerald-500 shrink-0" />
+                <h5 className="font-bold text-slate-800 text-xs">Antrean Verifikasi Bersih!</h5>
+                <p className="text-[11px] font-light max-w-sm">Tidak ada pelayan atau staf baru yang mengajukan pendaftaran mandiri saat ini. Semua akun pelayan Anda telah aktif.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b bg-slate-50 text-slate-500 font-bold text-[10px] uppercase">
+                      <th className="p-3">Nama Lengkap</th>
+                      <th className="p-3">Peran Pelayanan</th>
+                      <th className="p-3">Username Login</th>
+                      <th className="p-3">Email Akses</th>
+                      <th className="p-3 text-right">Tindakan Persetujuan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {pendingUsers.map((user) => (
+                      <tr key={user.id} className="hover:bg-slate-50/50 transition">
+                        <td className="p-3 font-semibold text-slate-900">{user.fullName}</td>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            user.role === 'KEPALA_DIVISI' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                            user.role === 'PENGURUS' ? 'bg-sky-50 text-sky-700 border border-sky-200' :
+                            'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                          }`}>
+                            {user.role === 'KEPALA_DIVISI' ? 'KADIV / KEPALA DEPARTEMEN' :
+                             user.role === 'PENGURUS' ? 'STAFF BENDAHARA / PENGURUS' :
+                             'PELAYAN JEMAAT'}
+                          </span>
+                        </td>
+                        <td className="p-3 font-mono font-medium text-slate-600">{user.username}</td>
+                        <td className="p-3 text-slate-500">{user.email}</td>
+                        <td className="p-3 text-right space-x-1 whitespace-nowrap">
+                          <button
+                            onClick={() => handleVerifyUser(user.id, user.fullName)}
+                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-md transition shadow-2xs cursor-pointer inline-flex items-center space-x-1"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Setujui & Integrasikan</span>
+                          </button>
+                          <button
+                            onClick={() => handleRejectUser(user.id, user.fullName)}
+                            className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-semibold border border-rose-200 rounded-md transition cursor-pointer inline-flex items-center space-x-1"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Tolak</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {activeSubTab === 'ANALYSIS' && (

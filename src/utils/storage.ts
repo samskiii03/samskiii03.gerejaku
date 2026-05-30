@@ -965,6 +965,89 @@ class DatabaseEngine {
     }
   }
 
+  public verifyAndIntegrateUser(userId: string, updater: User): boolean {
+    if (!this.data.users) this.data.users = [];
+    const index = this.data.users.findIndex(u => u.id === userId);
+    if (index === -1) return false;
+
+    const user = this.data.users[index];
+    user.isVerified = true;
+
+    // Create a Member entry
+    if (!this.data.members) this.data.members = [];
+    
+    // Check if member already exists (e.g. same email/name)
+    const exists = this.data.members.some(m => 
+      m.email.toLowerCase() === user.email.toLowerCase() || 
+      m.name.toLowerCase() === user.fullName.toLowerCase()
+    );
+    
+    if (!exists) {
+      const birthDay = '1995-05-30';
+      const parsedNickname = user.fullName.split(' ')[0] || user.fullName;
+      const initialMember: Member = {
+        id: 'm-' + user.id,
+        name: user.fullName,
+        nickname: parsedNickname,
+        gender: 'L',
+        birthPlace: 'Jakarta',
+        birthDate: birthDay,
+        age: 31,
+        maritalStatus: 'BELUM_MENIKAH',
+        address: 'Alamat Anggota Terdaftar Sektor',
+        sector: 'Sektor Utama',
+        phone: '0812-3456-7890',
+        email: user.email,
+        education: 'S1',
+        occupation: 'Pelayan Jemaat',
+        joinDate: new Date().toISOString().split('T')[0],
+        baptismStatus: 'YA',
+        ministryStatus: 'YA',
+        category: 'INTI',
+        joinYear: new Date().getFullYear(),
+        activityScore: 100,
+        churchId: user.churchId,
+        pastoralNotes: [],
+        followUps: [],
+        attachments: []
+      };
+      
+      const corrected = this.evaluateMember(initialMember);
+      this.data.members.push(corrected);
+    }
+
+    this.logAudit(
+      updater.id,
+      updater.fullName,
+      'USER_VERIFIED_GEMBALA',
+      `Gembala memverifikasi akun pendaftaran ${user.fullName} (${user.role}) dan mengintegrasikannya ke database jemaat.`,
+      user,
+      null
+    );
+
+    this.persist();
+    return true;
+  }
+
+  public rejectUserRegistration(userId: string, updater: User): boolean {
+    if (!this.data.users) this.data.users = [];
+    const index = this.data.users.findIndex(u => u.id === userId);
+    if (index === -1) return false;
+    const user = this.data.users[index];
+
+    this.data.users.splice(index, 1);
+    this.logAudit(
+      updater.id,
+      updater.fullName,
+      'USER_REJECTED_GEMBALA',
+      `Gembala menolak akun pendaftaran pelayan ${user.fullName} (${user.role}) dan menghapus draf registrasi dari antrean.`,
+      user,
+      null
+    );
+    this.persist();
+    return true;
+  }
+
   // Members
   public getMembers(): Member[] {
     return this.data.members || [];

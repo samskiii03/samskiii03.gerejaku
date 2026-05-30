@@ -29,6 +29,7 @@ export interface User {
   avatar?: string;
   divisionId?: string;
   password?: string;
+  isVerified?: boolean;
 }
 
 export interface PastoralNote {

@@ -59,6 +59,7 @@ export default function App() {
   const [regPastor, setRegPastor] = useState('');
   const [regUser, setRegUser] = useState('');
   const [regPass, setRegPass] = useState('');
+  const [regPassConfirm, setRegPassConfirm] = useState('');
 
   // Notifications alert states
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
@@ -147,6 +148,11 @@ export default function App() {
     );
 
      if (match && isPassValid) {
+       if (match.isVerified === false) {
+         const lChurch = db.getChurches().find(c => c.id === match.churchId);
+         setLoginError(`Akun Anda (${match.fullName}) sedang berada dalam antrean. Anda harus disetujui/diverifikasi oleh Gembala Sidang cabang "${lChurch?.name || match.churchId}" terlebih dahulu sebelum dapat menggunakan sistem.`);
+         return;
+       }
        setCurrentUser(match);
        db.setSessionUser(match);
        setLoginError('');
@@ -168,8 +174,13 @@ export default function App() {
 
   const handleRegisterUserLinkedSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regPastor || !regUser || !regPass || !regSelectedChurchId) {
-      alert("Harap lengkapi nama, username, password, dan pilih gereja terverifikasi.");
+    if (!regPastor || !regUser || !regPass || !regPassConfirm || !regSelectedChurchId) {
+      alert("Harap lengkapi nama, username, password, konfirmasi password, dan pilih gereja terverifikasi.");
+      return;
+    }
+
+    if (regPass !== regPassConfirm) {
+      alert("⚠️ Sandi login tidak cocok! Harap ketik ulang kedua sandi login dengan sama persis.");
       return;
     }
 
@@ -178,30 +189,38 @@ export default function App() {
 
     const nUser: User = {
       id: 'u-' + Date.now(),
-      username: regUser.toLowerCase(),
+      username: regUser.trim().toLowerCase(),
       fullName: regPastor,
-      email: regEmail || `${regUser.toLowerCase()}@metaconnect.org`,
+      email: regEmail || `${regUser.trim().toLowerCase()}@metaconnect.org`,
       role: regUserRole,
-      churchId: regSelectedChurchId
+      churchId: regSelectedChurchId,
+      password: regPass,
+      isVerified: false // Needs Gembala approval
     };
 
     db.createUser(nUser);
-    db.logAudit(nUser.id, nUser.fullName, 'USER_REGISTER', `Mendaftarkan akun: ${nUser.fullName} (${nUser.role}) langsung terhubung dengan gereja terverifikasi: ${matchedChurch.name}`);
+    db.logAudit(nUser.id, nUser.fullName, 'USER_REGISTER', `Pendaftaran akun baru (${nUser.role}: ${nUser.fullName}) menunggu persetujuan verifikasi Gembala Sidang cabang: ${matchedChurch.name}`);
 
-    alert(`Pendaftaran Akun Berhasil! Akun Anda langsung terhubung dengan gereja terverifikasi "${matchedChurch.name}". Silakan masuk menggunakan kredensial yang baru dibuat.`);
+    alert(`Pendaftaran Berhasil! Akun Anda (${nUser.fullName}) telah dicatat di sistem dan saat ini sedang menunggu VERIFIKASI dari Gembala Sidang di cabang "${matchedChurch.name}". Anda baru dapat masuk setelah disetujui Gembala setempat.`);
     setIsRegisterChurch(false);
 
     // Clear
     setRegPastor('');
     setRegUser('');
     setRegPass('');
+    setRegPassConfirm('');
     setRegEmail('');
   };
 
   const handleRegisterChurchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regChurchName || !regPastor || !regUser || !regPass) {
+    if (!regChurchName || !regPastor || !regUser || !regPass || !regPassConfirm) {
       alert("Harap lengkapi semua field registrasi gereja.");
+      return;
+    }
+
+    if (regPass !== regPassConfirm) {
+      alert("⚠️ Sandi login tidak cocok! Harap ketik ulang kedua sandi login dengan sama persis.");
       return;
     }
 
@@ -218,11 +237,13 @@ export default function App() {
 
     const nUser: User = {
       id: 'u-' + Date.now(),
-      username: regUser.toLowerCase(),
+      username: regUser.trim().toLowerCase(),
       fullName: regPastor,
       email: regEmail,
       role: 'GEMBALA',
-      churchId: nChurch.id
+      churchId: nChurch.id,
+      password: regPass,
+      isVerified: true // Gembala initiating church registers with instant verification setup
     };
 
     // Save to DB
@@ -242,6 +263,7 @@ export default function App() {
     setRegPastor('');
     setRegUser('');
     setRegPass('');
+    setRegPassConfirm('');
   };
 
   // Direct quick logins for demo setup
@@ -527,7 +549,7 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 border-t pt-2.5">
+                        <div className="border-t pt-3 space-y-2">
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 mb-0.5">USERNAME LOGIN *</label>
                             <input 
@@ -539,16 +561,29 @@ export default function App() {
                               className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded outline-none font-mono text-xs"
                             />
                           </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 mb-0.5">SANDI LOGIN *</label>
-                            <input 
-                              type="password" 
-                              required 
-                              placeholder="Ketik password"
-                              value={regPass}
-                              onChange={(e) => setRegPass(e.target.value)}
-                              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded outline-none text-xs"
-                            />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-0.5">SANDI LOGIN *</label>
+                              <input 
+                                type="password" 
+                                required 
+                                placeholder="Ketik sandi"
+                                value={regPass}
+                                onChange={(e) => setRegPass(e.target.value)}
+                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded outline-none text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-0.5">KONFIRMASI SANDI *</label>
+                              <input 
+                                type="password" 
+                                required 
+                                placeholder="Ulangi sandi"
+                                value={regPassConfirm}
+                                onChange={(e) => setRegPassConfirm(e.target.value)}
+                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded outline-none text-xs"
+                              />
+                            </div>
                           </div>
                         </div>
 
@@ -642,27 +677,38 @@ export default function App() {
                             />
                           </div>
 
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-0.5">USERNAME LOGIN *</label>
+                            <input 
+                              type="text" 
+                              required 
+                              placeholder="Contoh: gembalanya"
+                              value={regUser}
+                              onChange={(e) => setRegUser(e.target.value)}
+                              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded outline-none font-mono text-xs"
+                            />
+                          </div>
                           <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 mb-0.5">USERNAME LOGIN *</label>
-                              <input 
-                                type="text" 
-                                required 
-                                placeholder="Contoh: gembalanya"
-                                value={regUser}
-                                onChange={(e) => setRegUser(e.target.value)}
-                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded outline-none font-mono"
-                              />
-                            </div>
                             <div>
                               <label className="block text-[10px] font-bold text-slate-500 mb-0.5">SANDI LOGIN *</label>
                               <input 
                                 type="password" 
                                 required 
-                                placeholder="Ketik password"
+                                placeholder="Ketik sandi"
                                 value={regPass}
                                 onChange={(e) => setRegPass(e.target.value)}
-                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded outline-none"
+                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded outline-none text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-0.5">KONFIRMASI SANDI *</label>
+                              <input 
+                                type="password" 
+                                required 
+                                placeholder="Ulangi sandi"
+                                value={regPassConfirm}
+                                onChange={(e) => setRegPassConfirm(e.target.value)}
+                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded outline-none text-xs"
                               />
                             </div>
                           </div>
