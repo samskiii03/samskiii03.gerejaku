@@ -387,6 +387,36 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
 
       {activeSubTab === 'DATABASE' && (
         <>
+        {/* Warning Pendaftaran Baru Pending */}
+        {pendingUsers.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-905 flex items-start space-x-3 shadow-3xs animate-in slide-in-from-top-2 duration-200">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-xs space-y-1">
+              <h4 className="font-bold text-amber-950 uppercase tracking-tight flex items-center space-x-1.5">
+                <span>⚠️ PERINGATAN VERIFIKASI SEGERA</span>
+                <span className="bg-amber-200 text-amber-800 text-[9px] px-1.5 py-0.2 rounded-full font-extrabold">{pendingUsers.length} AKUN</span>
+              </h4>
+              <p className="font-light leading-relaxed text-slate-700">
+                Terdapat <strong>{pendingUsers.length} akun pelayan/staf baru</strong> yang telah mendaftar mandiri untuk jemaat cabang Anda dan saat ini sedang berada dalam antrean peninjauan. 
+                Mereka tidak akan bisa login atau dihitung ke dalam Klasifikasi Database Jemaat sampai disetujui.
+              </p>
+              {currentUser.role === 'GEMBALA' ? (
+                <button
+                  onClick={() => setActiveSubTab('VERIF_USER')}
+                  className="mt-2 inline-flex items-center space-x-1 text-white hover:text-white bg-indigo-600 hover:bg-indigo-700 font-extrabold py-1 px-3 rounded-lg text-[10px] transition cursor-pointer shadow-3xs"
+                >
+                  <span>Proses & Setujui Sekarang</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <p className="text-[10px] text-slate-500 font-bold mt-1 bg-white/60 p-1.5 rounded inline-block border border-slate-250/20">
+                  💡 Hanya <strong>Gembala Sidang</strong> setempat yang memegang wewenang penuh untuk memverifikasi & menyetujui akun-akun mandiri ini.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Filters & Search Toolbar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200/80 flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:max-w-md">

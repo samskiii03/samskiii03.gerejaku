@@ -380,6 +380,7 @@ export default function App() {
   const inactiveCount = activeMembers.filter(m => m.activityScore < 40).length;
   const newMembersCount = activeMembers.filter(m => m.category === 'BARU').length;
   const pendingApprovalsCount = db.getApprovals().filter(a => a.status === 'SUBMITTED').length;
+  const pendingUsersCount = currentUser ? db.getUsers().filter(u => u.churchId === (effectiveUser || currentUser)?.churchId && !u.isVerified).length : 0;
 
   if (inactiveCount > 0) {
     computedAlerts.push({
@@ -403,6 +404,14 @@ export default function App() {
       title: 'Persetujuan Anggaran',
       desc: `${pendingApprovalsCount} Pengajuan departemen butuh verifikasi Gembala Sidang.`,
       type: 'DANGER'
+    });
+  }
+  if (pendingUsersCount > 0) {
+    computedAlerts.push({
+      id: 'al-4',
+      title: 'Verifikasi Pendaftar Baru',
+      desc: `Terdapat ${pendingUsersCount} pendaftar baru yang menunggu persetujuan & integrasi database jemaat.`,
+      type: 'WARNING'
     });
   }
 
