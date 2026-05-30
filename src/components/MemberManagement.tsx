@@ -692,17 +692,32 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b bg-slate-50 text-slate-500 font-bold text-[10px] uppercase">
-                      <th className="p-3">Nama Lengkap</th>
+                      <th className="p-3">Nama Lengkap & Kontak</th>
+                      <th className="p-3">Jenis Kelamin</th>
                       <th className="p-3">Peran Pelayanan</th>
-                      <th className="p-3">Username Login</th>
-                      <th className="p-3">Email Akses</th>
+                      <th className="p-3">Kredensial Login</th>
+                      <th className="p-3">Talenta & Motivasi Pendaftaran</th>
                       <th className="p-3 text-right">Tindakan Persetujuan</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {pendingUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-slate-50/50 transition">
-                        <td className="p-3 font-semibold text-slate-900">{user.fullName}</td>
+                        <td className="p-3">
+                          <div className="font-semibold text-slate-900">{user.fullName}</div>
+                          {user.phone ? (
+                            <div className="text-[10px] text-slate-500 font-mono mt-0.5">📱 {user.phone}</div>
+                          ) : (
+                            <span className="text-[9px] text-slate-400 italic font-mono">No. HP Belum Diisi</span>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            user.gender === 'P' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}>
+                            {user.gender === 'P' ? 'Perempuan (P)' : 'Laki-Laki (L)'}
+                          </span>
+                        </td>
                         <td className="p-3">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             user.role === 'KEPALA_DIVISI' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
@@ -714,15 +729,33 @@ export default function MemberManagement({ currentUser, onRefreshTrail }: Member
                              'PELAYAN JEMAAT'}
                           </span>
                         </td>
-                        <td className="p-3 font-mono font-medium text-slate-600">{user.username}</td>
-                        <td className="p-3 text-slate-500">{user.email}</td>
+                        <td className="p-3">
+                          <div className="font-mono font-medium text-slate-600">@{user.username}</div>
+                          <div className="text-[10px] text-slate-400">{user.email}</div>
+                        </td>
+                        <td className="p-3 max-w-xs">
+                          <div className="space-y-1">
+                            <div>
+                              <span className="font-bold text-[9px] text-slate-400 uppercase tracking-tight">Keahlian & Talenta:</span>
+                              <p className="text-[11px] text-slate-700 font-medium">
+                                {user.talents ? user.talents : <span className="text-slate-400 italic">- Tidak diisi -</span>}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="font-bold text-[9px] text-slate-400 uppercase tracking-tight">Motivasi Bergabung:</span>
+                              <p className="text-[11px] text-slate-600 italic leading-relaxed bg-slate-50 p-2 rounded border border-slate-150 font-light whitespace-normal">
+                                {user.registrationReason ? `"${user.registrationReason}"` : <span className="text-slate-400 italic">- Tidak diisi -</span>}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
                         <td className="p-3 text-right space-x-1 whitespace-nowrap">
                           <button
                             onClick={() => handleVerifyUser(user.id, user.fullName)}
                             className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-md transition shadow-2xs cursor-pointer inline-flex items-center space-x-1"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Setujui & Integrasikan</span>
+                            <span>Setujui</span>
                           </button>
                           <button
                             onClick={() => handleRejectUser(user.id, user.fullName)}

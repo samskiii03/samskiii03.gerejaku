@@ -30,6 +30,10 @@ export interface User {
   divisionId?: string;
   password?: string;
   isVerified?: boolean;
+  phone?: string;
+  gender?: 'L' | 'P';
+  talents?: string; // Minat Pelayanan / Karunia Rohani
+  registrationReason?: string; // Alasan & Motivasi mendaftar
 }
 
 export interface PastoralNote {

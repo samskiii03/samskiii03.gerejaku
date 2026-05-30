@@ -60,6 +60,12 @@ export default function App() {
   const [regUser, setRegUser] = useState('');
   const [regPass, setRegPass] = useState('');
   const [regPassConfirm, setRegPassConfirm] = useState('');
+  
+  // Verification considerations fields
+  const [regUserPhone, setRegUserPhone] = useState('');
+  const [regUserGender, setRegUserGender] = useState<'L' | 'P'>('L');
+  const [regUserTalents, setRegUserTalents] = useState('');
+  const [regUserReason, setRegUserReason] = useState('');
 
   // Notifications alert states
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
@@ -202,7 +208,11 @@ export default function App() {
       role: regUserRole,
       churchId: regSelectedChurchId,
       password: regPass,
-      isVerified: false // Needs Gembala approval
+      isVerified: false, // Needs Gembala approval
+      phone: regUserPhone,
+      gender: regUserGender,
+      talents: regUserTalents,
+      registrationReason: regUserReason
     };
 
     db.createUser(nUser);
@@ -217,6 +227,10 @@ export default function App() {
     setRegPass('');
     setRegPassConfirm('');
     setRegEmail('');
+    setRegUserPhone('');
+    setRegUserGender('L');
+    setRegUserTalents('');
+    setRegUserReason('');
   };
 
   const handleRegisterChurchSubmit = (e: React.FormEvent) => {
@@ -561,6 +575,52 @@ export default function App() {
                               <option value="PENGURUS">STAFF BENDAHARA / PENGURUS</option>
                             </select>
                           </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 border-t pt-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1">NO. HANDPHONE / WA</label>
+                            <input 
+                              type="text" 
+                              placeholder="08123xxxx"
+                              value={regUserPhone}
+                              onChange={(e) => setRegUserPhone(e.target.value)}
+                              className="w-full p-2.5 bg-slate-50 border rounded outline-none text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1">JENIS KELAMIN</label>
+                            <select
+                              value={regUserGender}
+                              onChange={(e) => setRegUserGender(e.target.value as 'L' | 'P')}
+                              className="w-full p-2.5 bg-slate-50 border rounded outline-none text-xs text-slate-700 bg-white"
+                            >
+                              <option value="L">LAKI-LAKI (L)</option>
+                              <option value="P">PEREMPUAN (P)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">MINAT DEPARTEMEN / TALENTA PELAYANAN</label>
+                          <input 
+                            type="text" 
+                            placeholder="Contoh: Pemusik, Singer, Guru Sekolah Minggu, Multimedia"
+                            value={regUserTalents}
+                            onChange={(e) => setRegUserTalents(e.target.value)}
+                            className="w-full p-2.5 bg-slate-50 border rounded outline-none text-xs"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">ALASAN & MOTIVASI BERGABUNG / PELAYANAN</label>
+                          <textarea 
+                            placeholder="Tuliskan alasan singkat atau rekomendasi dari pengurus jemaat yang mendukung..."
+                            value={regUserReason}
+                            onChange={(e) => setRegUserReason(e.target.value)}
+                            rows={2}
+                            className="w-full p-2.5 bg-slate-50 border rounded outline-none text-xs resize-none"
+                          />
                         </div>
 
                         <div className="border-t pt-3 space-y-2">
