@@ -79,6 +79,7 @@ export interface Member {
   followUps?: FollowUpRecord[];
   attachments?: string[]; // file names / mock URLs
   attendanceHistory?: Record<string, boolean>; // date string -> present
+  churchId?: string;
 }
 
 export interface Division {

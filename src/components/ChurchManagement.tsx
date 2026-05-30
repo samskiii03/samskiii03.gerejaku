@@ -15,9 +15,10 @@ import {
 interface ChurchManagementProps {
   currentUser: User;
   onRefreshTrail: () => void;
+  onStartImpersonation?: (churchId: string) => void;
 }
 
-export default function ChurchManagement({ currentUser, onRefreshTrail }: ChurchManagementProps) {
+export default function ChurchManagement({ currentUser, onRefreshTrail, onStartImpersonation }: ChurchManagementProps) {
   const [activeTab, setActiveTab] = useState<'sectors' | 'credentials' | 'profile' | 'analytics'>('sectors');
   const [refreshSeed, setRefreshSeed] = useState(0);
 
@@ -280,6 +281,18 @@ export default function ChurchManagement({ currentUser, onRefreshTrail }: Church
       const prev = { ...target };
       target.status = status;
       db.updateChurch(target, currentUser);
+      setRefreshSeed(p => p + 1);
+      onRefreshTrail();
+    }
+  };
+
+  const handleDeleteChurch = (churchId: string) => {
+    const list = db.getChurches();
+    const target = list.find(c => c.id === churchId);
+    if (!target) return;
+
+    if (confirm(`⚠️ PERINGATAN KRITIS: Apakah Anda yakin ingin menghapus cabang gereja "${target.name}"?\n\nTindakan ini akan menghapus secara permanen:\n1. Seluruh data registrasi kustomisasi cabang ini.\n2. Seluruh akun pengguna gembala dan pelayan di dalam cabang ini.\n3. Seluruh basis data jemaat aktif & pasif di cabang ini.\n\nTindakan ini bersifat final dan tidak dapat ditarik kembali. Apakah Anda ingin melanjutkan?`)) {
+      db.deleteChurch(churchId, currentUser);
       setRefreshSeed(p => p + 1);
       onRefreshTrail();
     }
@@ -713,12 +726,24 @@ export default function ChurchManagement({ currentUser, onRefreshTrail }: Church
                       )}
 
                       {c.status === 'VERIFIED' && (
-                        <button 
-                          onClick={() => handleUpdateStatus(c.id, 'SUSPENDED')}
-                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-150 text-rose-700 rounded-lg border border-rose-250 text-xs font-bold cursor-pointer"
-                        >
-                          Suspend Cabang
-                        </button>
+                        <>
+                          {onStartImpersonation && (
+                            <button 
+                              onClick={() => onStartImpersonation(c.id)}
+                              className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold flex items-center space-x-1 cursor-pointer transition shadow-3xs"
+                              title="Lakukan Peninjauan Data Kas Keuangan, Schedulers Anggota & Administasi Kelas Sekolah Minggu"
+                            >
+                              <Database className="w-3.5 h-3.5 text-indigo-505 shrink-0" />
+                              <span>Audit Cabang</span>
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => handleUpdateStatus(c.id, 'SUSPENDED')}
+                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-150 text-rose-700 rounded-lg border border-rose-250 text-xs font-bold cursor-pointer"
+                          >
+                            Suspend Cabang
+                          </button>
+                        </>
                       )}
 
                       {c.status === 'SUSPENDED' && (
@@ -737,6 +762,15 @@ export default function ChurchManagement({ currentUser, onRefreshTrail }: Church
                       >
                         <Edit className="w-3.5 h-3.5 text-slate-400" />
                         <span>Kustomisasi Tema Logo</span>
+                      </button>
+
+                      <button 
+                        onClick={() => handleDeleteChurch(c.id)}
+                        className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold flex items-center space-x-1 cursor-pointer transition shadow-3xs"
+                        title="Hapus Cabang Gereja Beserta Akun & Jemaatnya Secara Permanen"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        <span>Hapus Cabang</span>
                       </button>
 
                     </div>

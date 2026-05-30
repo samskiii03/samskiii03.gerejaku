@@ -903,6 +903,39 @@ class DatabaseEngine {
     this.persist();
   }
 
+  public deleteChurch(churchId: string, updater: User): boolean {
+    if (!this.data.churches) this.data.churches = [];
+    const index = this.data.churches.findIndex(c => c.id === churchId);
+    if (index !== -1) {
+      const deletedChurch = this.data.churches[index];
+      
+      // Delete church
+      this.data.churches.splice(index, 1);
+      
+      // Cascade delete members belonging to this church
+      if (this.data.members) {
+        this.data.members = this.data.members.filter(m => m.churchId !== churchId);
+      }
+      
+      // Cascade delete users belonging to this church
+      if (this.data.users) {
+        this.data.users = this.data.users.filter(u => u.churchId !== churchId || u.role === 'SUPER_ADMIN');
+      }
+
+      this.logAudit(
+        updater.id,
+        updater.fullName,
+        'CHURCH_DELETE',
+        `Menghapus cabang gereja "${deletedChurch.name}" beserta dengan seluruh data jemaat dan pengguna pelayan terkait secara permanen.`,
+        deletedChurch,
+        null
+      );
+      this.persist();
+      return true;
+    }
+    return false;
+  }
+
   // Users (Dynamic Registration)
   public getUsers(): User[] {
     return this.data.users || [];

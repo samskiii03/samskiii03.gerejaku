@@ -31,7 +31,12 @@ import {
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(db.getSessionUser());
   const [dbMode, setDbMode] = useState<'DEMO' | 'REAL'>(db.getMode());
-  const [activeMenu, setActiveMenu] = useState<string>('dashboard');
+  const [activeMenu, setActiveMenu] = useState<string>(() => {
+    const user = db.getSessionUser();
+    if (user?.role === 'SUPER_ADMIN') return 'synod';
+    return 'dashboard';
+  });
+  const [auditedChurchId, setAuditedChurchId] = useState<string>('');
   
   // Registration form toggles
   const [isRegisterChurch, setIsRegisterChurch] = useState(false);
@@ -64,6 +69,45 @@ export default function App() {
   // Seed for refresh triggers
   const [seed, setSeed] = useState(0);
 
+  // Auditing context simulation parameters
+  const effectiveRole = (currentUser?.role === 'SUPER_ADMIN' && auditedChurchId) ? 'GEMBALA' : currentUser?.role;
+  const effectiveChurchId = (currentUser?.role === 'SUPER_ADMIN' && auditedChurchId) ? auditedChurchId : currentUser?.churchId;
+  const effectiveUser = currentUser ? {
+    ...currentUser,
+    role: effectiveRole as UserRole,
+    churchId: effectiveChurchId
+  } : null;
+
+  const permittedMenus = currentUser ? (
+    effectiveRole === 'SUPER_ADMIN' ? [
+      { id: 'synod', name: 'Verifikasi Cabang', icon: <Network className="w-4 h-4 shrink-0" />, desc: 'Kelola pendaftaran cabang baru, peninjauan legalitas, & audit' },
+      { id: 'audit', name: 'Audit Trail Nasional', icon: <History className="w-4 h-4 shrink-0" />, desc: 'Lacak riwayat perubahan, penambahan data jemaat & rollback keuangan' }
+    ] : [
+      { id: 'dashboard', name: 'Dasbor Analytics', icon: <LayoutDashboard className="w-4 h-4 shrink-0" />, desc: 'Ringkasan performa jemaat, grafik kehadiran, & info penting' },
+      { id: 'members', name: 'Database Jemaat', icon: <Users className="w-4 h-4 shrink-0" />, desc: 'Kelola dan klasifikasi data jemaat aktif, pasif, remaja & lansia' },
+      { id: 'services', name: 'Pelayanan & Jadwal', icon: <Calendar className="w-4 h-4 shrink-0" />, desc: 'Jadwalkan pelayan mimbar, petugas musik, perlengkapan & liturgis' },
+      { id: 'approvals', name: 'Approval Workflow', icon: <ListChecks className="w-4 h-4 shrink-0" />, desc: 'Persetujuan proposal divisi pelayanan, inventaris & anggaran dana' },
+      { id: 'finance', name: 'Buku Kas & Anggaran', icon: <Landmark className="w-4 h-4 shrink-0" />, desc: 'Metrik akuntansi double-entry, persepuluhan, pemasukan & pengeluaran' },
+      { id: 'school', name: 'Sekolah Minggu', icon: <BookOpen className="w-4 h-4 shrink-0" />, desc: 'Pencatatan kelas anak, database murid, absensi & pendataan pengajar' },
+      { id: 'divisions', name: 'Divisi Pelayanan', icon: <Network className="w-4 h-4 shrink-0" />, desc: 'Manajemen staf departemen, divisi musik, multimedia, & diakonia' },
+      { id: 'tasks', name: 'Kanban Task Board', icon: <Key className="w-4 h-4 shrink-0" />, desc: 'Tabel papan tugas to-do list persiapan peribadatan & operasional' },
+      { id: 'audit', name: 'Audit Log & Rollback', icon: <History className="w-4 h-4 shrink-0" />, desc: 'Catetan log audit trail, verifikasi aktivitas, & fitur pemulihan' }
+    ].filter(menu => {
+      const dbMenu = [
+        { id: 'dashboard', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
+        { id: 'members', roles: ['GEMBALA', 'PENGURUS'] },
+        { id: 'services', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
+        { id: 'approvals', roles: ['GEMBALA', 'PENGURUS', 'PELAYAN'] },
+        { id: 'finance', roles: ['GEMBALA', 'PENGURUS'] },
+        { id: 'school', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI'] },
+        { id: 'divisions', roles: ['GEMBALA', 'KEPALA_DIVISI'] },
+        { id: 'tasks', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
+        { id: 'audit', roles: ['GEMBALA'] }
+      ].find(m => m.id === menu.id);
+      return dbMenu ? dbMenu.roles.includes(effectiveRole) : false;
+    })
+  ) : [];
+
   useEffect(() => {
     const verifiedChurches = db.getChurches().filter(c => c.status === 'VERIFIED');
     if (verifiedChurches.length > 0) {
@@ -89,6 +133,10 @@ export default function App() {
       return;
     }
 
+    // Standard credential login is always in REAL mode as requested
+    db.setMode('REAL');
+    setDbMode('REAL');
+
     const allUsers = db.getUsers();
     const match = allUsers.find(u => u.username === username.trim().toLowerCase());
 
@@ -98,13 +146,17 @@ export default function App() {
         : username.trim().toLowerCase() === password
     );
 
-    if (match && isPassValid) {
-      setCurrentUser(match);
-      db.setSessionUser(match);
-      setLoginError('');
-      setActiveMenu('dashboard');
-    } else {
-      setLoginError("Kombinasi pengguna / sandi salah. Gunakan jalan pintas akses cepat di bawah jika berada dalam mode uji coba.");
+     if (match && isPassValid) {
+       setCurrentUser(match);
+       db.setSessionUser(match);
+       setLoginError('');
+       if (match.role === 'SUPER_ADMIN') {
+         setActiveMenu('synod');
+       } else {
+         setActiveMenu('dashboard');
+       }
+     } else {
+      setLoginError("Kombinasi nama pengguna atau kata sandi salah. Pastikan kredensial Anda valid untuk Mode Real.");
     }
   };
 
@@ -194,6 +246,10 @@ export default function App() {
 
   // Direct quick logins for demo setup
   const handleQuickDemoLogin = (role: 'GEMBALA' | 'PENGURUS' | 'PELAYAN' | 'SUPER_ADMIN') => {
+    // Force mode to DEMO as they clicked the demo testing bypass buttons
+    db.setMode('DEMO');
+    setDbMode('DEMO');
+
     const uname = role === 'SUPER_ADMIN' ? 'superadmin' : role.toLowerCase();
     const allUsers = db.getUsers();
     const match = allUsers.find(u => u.username === uname);
@@ -209,7 +265,7 @@ export default function App() {
   };
 
   // Dynamic colors matching Synod pusat specifications
-  const activeChurch = db.getChurches().find(c => c.id === currentUser?.churchId) || db.getChurches()[0];
+  const activeChurch = db.getChurches().find(c => c.id === effectiveUser?.churchId) || db.getChurches()[0];
   const churchThemeColor = activeChurch?.themeColor || '#0f172a';
 
   // Smart Alert generation
@@ -268,6 +324,27 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-950 font-sans flex flex-col justify-between">
       
+      {/* Mode Impersonation Audit Banner */}
+      {auditedChurchId && (
+        <div className="bg-indigo-900 border-b border-indigo-950 text-white px-6 py-2.5 flex flex-col sm:flex-row items-center justify-between text-xs font-bold leading-relaxed relative z-50 select-none shadow-sm">
+          <div className="flex items-center space-x-2">
+            <span className="p-1 bg-yellow-400 text-slate-900 rounded font-black text-[9px] tracking-wider uppercase animate-pulse shrink-0 font-sans">MODE AUDIT CABANG</span>
+            <span className="text-[11px] font-sans antialiased font-semibold">
+              Sedang mengaudit & mensimulasikan sistem lokal cabang: <span className="underline decoration-yellow-405 font-extrabold">{db.getChurches().find(c => c.id === auditedChurchId)?.name || auditedChurchId}</span> as <span className="text-yellow-400">Gembala Sidang</span>.
+            </span>
+          </div>
+          <button 
+            onClick={() => {
+              setAuditedChurchId('');
+              setActiveMenu('synod');
+            }}
+            className="mt-2 sm:mt-0 bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg font-black text-[10px] tracking-wider uppercase cursor-pointer transition shadow-sm hover:scale-[1.03]"
+          >
+            ← Keluar Mode Audit (Kembali Ke Sektor Pusat)
+          </button>
+        </div>
+      )}
+
       {/* 1. Global Header with Live Swap Demo/Real context */}
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40 px-6 py-3 shrink-0 flex items-center justify-between">
         <div className="flex items-center space-x-3 group select-none">
@@ -289,20 +366,22 @@ export default function App() {
           </div>
         </div>
 
-        {/* Real / Demo Toggle Swapper - Only visible when logged in */}
-        {currentUser && (
-          <div className="flex items-center space-x-3 bg-slate-50 border p-1 rounded-lg shrink-0">
+        {/* Real / Demo Toggle Swapper - Only visible when NOT logged in */}
+        {!currentUser && (
+          <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-xl shrink-0 border border-slate-200/80 shadow-3xs select-none">
             <button
               onClick={() => handleToggleDbMode('DEMO')}
-              className={`px-3 py-1 text-[10px] uppercase tracking-wider font-extrabold rounded-md transition ${dbMode === 'DEMO' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`px-3 py-1.5 text-[10px] uppercase tracking-wider font-extrabold rounded-lg transition-all cursor-pointer ${dbMode === 'DEMO' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-400 hover:text-slate-700'}`}
+              title="Gunakan database contoh bawaan untuk eksplorasi simulasi"
             >
               Mode Demo
             </button>
             <button
               onClick={() => handleToggleDbMode('REAL')}
-              className={`px-3 py-1 text-[10px] uppercase tracking-wider font-extrabold rounded-md transition ${dbMode === 'REAL' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`px-3 py-1.5 text-[10px] uppercase tracking-wider font-extrabold rounded-lg transition-all cursor-pointer ${dbMode === 'REAL' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-400 hover:text-slate-700'}`}
+              title="Gunakan database kosong untuk merekam transaksi nyata"
             >
-              Mode Real (Kosong)
+              Mode Real (Bersih)
             </button>
           </div>
         )}
@@ -732,51 +811,16 @@ export default function App() {
                 {/* Sidebar Menu items list matches Role segregation */}
                 <div className="space-y-1">
                   <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-500 px-3.5 block mb-1">Fitur Utama</span>
-                  
-                  {/* Super admin synod role ONLY menu */}
-                  {currentUser.role === 'SUPER_ADMIN' ? (
-                    <>
-                      <button 
-                        onClick={() => { setActiveMenu('synod'); setMobileSbarOpen(false); }}
-                        className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs font-bold transition flex items-center space-x-2 ${activeMenu === 'synod' ? 'bg-slate-900 text-white font-extrabold' : 'hover:bg-slate-900/60 text-slate-400'}`}
-                      >
-                        <Network className="w-4 h-4 shrink-0" />
-                        <span>Verifikasi Gereja</span>
-                      </button>
-
-                      <button 
-                        onClick={() => { setActiveMenu('audit'); setMobileSbarOpen(false); }}
-                        className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs font-bold transition flex items-center space-x-2 ${activeMenu === 'audit' ? 'bg-slate-900 text-white font-extrabold' : 'hover:bg-slate-900/60 text-slate-400'}`}
-                      >
-                        <History className="w-4 h-4 shrink-0" />
-                        <span>Audit Trail Nasional</span>
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {/* Standard dashboard & church operational functions */}
-                      {[
-                        { id: 'dashboard', name: 'Dashboard Analytics', icon: <LayoutDashboard className="w-4 h-4 shrink-0" />, roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI'] },
-                        { id: 'members', name: 'Database Jemaat', icon: <Users className="w-4 h-4 shrink-0" />, roles: ['GEMBALA', 'PENGURUS'] },
-                        { id: 'services', name: 'Pelayanan & Jadwal', icon: <Calendar className="w-4 h-4 shrink-0" />, roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
-                        { id: 'approvals', name: 'Approval Workflow', icon: <ListChecks className="w-4 h-4 shrink-0" />, roles: ['GEMBALA', 'PENGURUS', 'PELAYAN'] },
-                        { id: 'finance', name: 'Buku Kas & Anggaran', icon: <Landmark className="w-4 h-4 shrink-0" />, roles: ['GEMBALA', 'PENGURUS'] },
-                        { id: 'school', name: 'Sekolah Minggu', icon: <BookOpen className="w-4 h-4 shrink-0" />, roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI'] },
-                        { id: 'divisions', name: 'Divisi Pelayanan', icon: <Network className="w-4 h-4 shrink-0" />, roles: ['GEMBALA', 'KEPALA_DIVISI'] },
-                        { id: 'tasks', name: 'Kanban Task Board', icon: <Key className="w-4 h-4 shrink-0" />, roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
-                        { id: 'audit', name: 'Audit Log & Rollback', icon: <History className="w-4 h-4 shrink-0" />, roles: ['GEMBALA'] }
-                      ].filter(menu => menu.roles.includes(currentUser.role)).map(menu => (
-                        <button 
-                          key={menu.id}
-                          onClick={() => { setActiveMenu(menu.id); setMobileSbarOpen(false); }}
-                          className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs font-bold transition flex items-center space-x-2.5 ${activeMenu === menu.id ? 'bg-indigo-600 text-white font-extrabold' : 'hover:bg-slate-950/60 text-slate-400'}`}
-                        >
-                          {menu.icon}
-                          <span>{menu.name}</span>
-                        </button>
-                      ))}
-                    </>
-                  )}
+                  {permittedMenus.map(menu => (
+                    <button 
+                      key={menu.id}
+                      onClick={() => { setActiveMenu(menu.id); setMobileSbarOpen(false); }}
+                      className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs font-bold transition flex items-center space-x-2.5 ${activeMenu === menu.id ? 'bg-indigo-600 text-white font-extrabold' : 'hover:bg-slate-900/60 text-slate-400'}`}
+                    >
+                      {menu.icon}
+                      <span>{menu.name}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -803,11 +847,14 @@ export default function App() {
                 <button 
                   onClick={() => setMobileSbarOpen(!mobileSbarOpen)}
                   className="p-1.5 border rounded-lg hover:bg-slate-100 transition"
+                  title="Buka menu navigasi utama"
                 >
                   <Menu className="w-5 h-5 text-slate-700" />
                 </button>
 
-                <span className="text-xs font-extrabold text-slate-800 uppercase tracking-tight">{activeMenu} Menu</span>
+                <span className="text-xs font-extrabold text-slate-800 uppercase tracking-tight">
+                  {permittedMenus.find(m => m.id === activeMenu)?.name || activeMenu}
+                </span>
 
                 {/* Mobile alerts shortcut */}
                 <button 
@@ -819,6 +866,20 @@ export default function App() {
                     <span className="w-2 h-2 rounded-full bg-rose-600 absolute right-1.5 top-1.5"></span>
                   )}
                 </button>
+              </div>
+
+              {/* Mobile Horizontal Scrolling Tabs - Menus are NOT hidden anymore! */}
+              <div className="lg:hidden shrink-0 bg-slate-50 border-b overflow-x-auto flex items-center py-2 px-3.5 space-x-2 select-none no-scrollbar scrollbar-none">
+                {permittedMenus.map(menu => (
+                  <button
+                    key={menu.id}
+                    onClick={() => { setActiveMenu(menu.id); setMobileSbarOpen(false); }}
+                    className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-[10px] font-black whitespace-nowrap transition-all cursor-pointer border ${activeMenu === menu.id ? 'bg-indigo-600 text-white border-indigo-700 shadow-3xs' : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'}`}
+                  >
+                    {React.cloneElement(menu.icon as React.ReactElement, { className: 'w-3 h-3 shrink-0' })}
+                    <span>{menu.name.replace('Dasbor ', '').replace('Database ', '')}</span>
+                  </button>
+                ))}
               </div>
 
               {/* Sub-modules router switch board */}
@@ -890,6 +951,42 @@ export default function App() {
                       />
                     </div>
 
+                    {/* Highly Elegant Module Shortcuts Grid on Dashboard (Not hidden anymore!) */}
+                    <div className="bg-slate-100/50 rounded-2xl p-4 sm:p-5 border border-slate-200/70 space-y-3.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="p-1 bg-indigo-100 text-indigo-700 rounded-lg">
+                            <Sparkles className="w-3.5 h-3.5 animate-pulse text-indigo-600" />
+                          </span>
+                          <span className="text-[10px] uppercase font-black text-slate-700 tracking-wider">Akses Pintasan Modul Utama (Menu Langsung)</span>
+                        </div>
+                        <span className="text-[9px] text-slate-400 font-medium">Klik Pintasan di bawah untuk melompat langsung ke sistem tanpa laci samping</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {permittedMenus.filter(m => m.id !== 'dashboard').map(menu => (
+                          <button
+                            key={menu.id}
+                            onClick={() => setActiveMenu(menu.id)}
+                            className="bg-white hover:bg-slate-50 p-3.5 border border-slate-200 hover:border-indigo-400 hover:shadow-xs rounded-xl text-left transition duration-205 cursor-pointer group flex flex-col justify-between space-y-2 h-[96px] relative overflow-hidden"
+                          >
+                            <div className="flex items-center justify-between w-full relative z-10">
+                              <div className="p-1.5 bg-slate-50 group-hover:bg-indigo-50 text-slate-500 group-hover:text-indigo-600 rounded-lg transition duration-200">
+                                {React.cloneElement(menu.icon as React.ReactElement, { className: 'w-4 h-4 shrink-0' })}
+                              </div>
+                              <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500 transition duration-200 transform group-hover:translate-x-0.5" />
+                            </div>
+                            <div className="relative z-10 space-y-0.5">
+                              <span className="font-extrabold text-[11px] text-slate-800 group-hover:text-indigo-950 block leading-snug">{menu.name}</span>
+                              <span className="text-[9px] text-slate-400 font-light block truncate leading-none">{menu.desc}</span>
+                            </div>
+                            {/* Subtle hover background decoration */}
+                            <div className="absolute -right-4 -bottom-4 w-12 h-12 bg-indigo-500/0 group-hover:bg-indigo-500/5 rounded-full blur-md transition duration-300"></div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* Graphics panel */}
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                       
@@ -932,39 +1029,46 @@ export default function App() {
 
                 {/* Sub routing blocks */}
                 {activeMenu === 'members' && (
-                  <MemberManagement currentUser={currentUser} onRefreshTrail={() => setSeed(s => s + 1)} />
+                  <MemberManagement currentUser={effectiveUser || currentUser} onRefreshTrail={() => setSeed(s => s + 1)} />
                 )}
 
                 {activeMenu === 'finance' && (
-                  <FinancialManagement currentUser={currentUser} onRefreshTrail={() => setSeed(s => s + 1)} />
+                  <FinancialManagement currentUser={effectiveUser || currentUser} onRefreshTrail={() => setSeed(s => s + 1)} />
                 )}
 
                 {activeMenu === 'services' && (
-                  <ServiceManagement currentUser={currentUser} onRefreshTrail={() => setSeed(s => s + 1)} />
+                  <ServiceManagement currentUser={effectiveUser || currentUser} onRefreshTrail={() => setSeed(s => s + 1)} />
                 )}
 
                 {activeMenu === 'approvals' && (
-                  <ApprovalSystem currentUser={currentUser} onRefreshTrail={() => setSeed(s => s + 1)} />
+                  <ApprovalSystem currentUser={effectiveUser || currentUser} onRefreshTrail={() => setSeed(s => s + 1)} />
                 )}
 
                 {activeMenu === 'school' && (
-                  <SundaySchool currentUser={currentUser} />
+                  <SundaySchool currentUser={effectiveUser || currentUser} />
                 )}
 
                 {activeMenu === 'divisions' && (
-                  <Divisions currentUser={currentUser} onRefreshTrail={() => setSeed(s => s + 1)} />
+                  <Divisions currentUser={effectiveUser || currentUser} onRefreshTrail={() => setSeed(s => s + 1)} />
                 )}
 
                 {activeMenu === 'tasks' && (
-                  <TasksManagement currentUser={currentUser} />
+                  <TasksManagement currentUser={effectiveUser || currentUser} />
                 )}
 
                 {activeMenu === 'synod' && (
-                  <ChurchManagement currentUser={currentUser} onRefreshTrail={() => setSeed(s => s + 1)} />
+                  <ChurchManagement 
+                    currentUser={currentUser} 
+                    onRefreshTrail={() => setSeed(s => s + 1)} 
+                    onStartImpersonation={(churchId) => {
+                      setAuditedChurchId(churchId);
+                      setActiveMenu('dashboard');
+                    }}
+                  />
                 )}
 
                 {activeMenu === 'audit' && (
-                  <AuditTrailView currentUser={currentUser} onRefresh={() => setSeed(s => s + 1)} />
+                  <AuditTrailView currentUser={effectiveUser || currentUser} onRefresh={() => setSeed(s => s + 1)} />
                 )}
               </div>
             </div>
