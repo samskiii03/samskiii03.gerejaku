@@ -116,7 +116,7 @@ export default function App() {
         { id: 'members', roles: ['GEMBALA', 'PENGURUS'] },
         { id: 'services', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
         { id: 'approvals', roles: ['GEMBALA', 'PENGURUS', 'PELAYAN'] },
-        { id: 'finance', roles: ['GEMBALA', 'PENGURUS'] },
+        { id: 'finance', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
         { id: 'school', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI'] },
         { id: 'divisions', roles: ['GEMBALA', 'KEPALA_DIVISI'] },
         { id: 'tasks', roles: ['GEMBALA', 'PENGURUS', 'KEPALA_DIVISI', 'PELAYAN'] },
