@@ -8,6 +8,74 @@ import {
   Transaction, Task, SundaySchoolKid, SundaySchoolClass, AuditTrail,
   ServiceType, ServiceSchedule, FinancialPocket, CustomApprovalWorkflow
 } from '../types/church';
+import { collection, doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
+import { dbFirestore } from './firebase';
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: null,
+      email: null,
+      emailVerified: null,
+      isAnonymous: null,
+      tenantId: null,
+      providerInfo: []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+export function sanitizeData(data: any): any {
+  if (data === undefined) {
+    return null;
+  }
+  if (data === null) {
+    return null;
+  }
+  if (Array.isArray(data)) {
+    return data.map(v => sanitizeData(v));
+  }
+  if (typeof data === 'object') {
+    const clean: any = {};
+    for (const key of Object.keys(data)) {
+      if (data[key] !== undefined) {
+        clean[key] = sanitizeData(data[key]);
+      }
+    }
+    return clean;
+  }
+  return data;
+}
 
 // Storage keys
 const DB_MODE_KEY = 'metaconnect_db_mode'; // 'DEMO' | 'REAL'
@@ -751,9 +819,132 @@ const DEMO_SYSTEM_STATE: SystemData = {
 // State Manager class
 class DatabaseEngine {
   private data: SystemData = DEMO_SYSTEM_STATE;
+  private activeSubscriptions: (() => void)[] = [];
 
   constructor() {
     this.syncFromStorage();
+    this.setupRealtimeListeners();
+  }
+
+  private async writeEntity(collectionName: string, id: string, docData: any) {
+    if (this.getMode() !== 'REAL') return;
+    try {
+      const sanitized = sanitizeData(docData);
+      await setDoc(doc(dbFirestore, collectionName, id), sanitized);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `${collectionName}/${id}`);
+    }
+  }
+
+  private async deleteEntity(collectionName: string, id: string) {
+    if (this.getMode() !== 'REAL') return;
+    try {
+      await deleteDoc(doc(dbFirestore, collectionName, id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `${collectionName}/${id}`);
+    }
+  }
+
+  private async seedCollectionIfNecessary(key: string) {
+    if (this.getMode() !== 'REAL') return;
+    const defaultData = EMPTY_SYSTEM_STATE as any;
+    const items = defaultData[key];
+    if (items && Array.isArray(items) && items.length > 0) {
+      console.log(`Seeding online Firestore collection: ${key}`);
+      for (const item of items) {
+        if (item && item.id) {
+          try {
+            const sanitized = sanitizeData(item);
+            await setDoc(doc(dbFirestore, key, item.id), sanitized);
+          } catch (err) {
+            console.error(`Failed to seed ${key}/${item.id}:`, err);
+          }
+        }
+      }
+    }
+  }
+
+  private setupRealtimeListeners() {
+    // Unsubscribe from any active listeners first
+    this.activeSubscriptions.forEach(unsub => unsub());
+    this.activeSubscriptions = [];
+
+    if (this.getMode() !== 'REAL') {
+      return;
+    }
+
+    const collections = [
+      { key: 'churches', col: 'churches' },
+      { key: 'users', col: 'users' },
+      { key: 'members', col: 'members' },
+      { key: 'divisions', col: 'divisions' },
+      { key: 'approvals', col: 'approvals' },
+      { key: 'transactions', col: 'transactions' },
+      { key: 'pockets', col: 'pockets' },
+      { key: 'customWorkflows', col: 'customWorkflows' },
+      { key: 'tasks', col: 'tasks' },
+      { key: 'kids', col: 'kids' },
+      { key: 'classes', col: 'classes' },
+      { key: 'serviceTypes', col: 'serviceTypes' },
+      { key: 'serviceSchedules', col: 'serviceSchedules' },
+      { key: 'audits', col: 'audits' },
+    ];
+
+    collections.forEach(({ key, col }) => {
+      try {
+        const unsub = onSnapshot(collection(dbFirestore, col), (snapshot) => {
+          const list: any[] = [];
+          snapshot.forEach(docSnap => {
+            list.push(docSnap.data());
+          });
+          
+          if (list.length === 0) {
+            this.seedCollectionIfNecessary(key);
+            return;
+          }
+
+          if (key === 'audits') {
+            list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+          }
+
+          if (key === 'recycleMembers') {
+            if (!this.data.recycleBin) this.data.recycleBin = {};
+            this.data.recycleBin.members = list;
+          } else {
+            (this.data as any)[key] = list;
+          }
+
+          localStorage.setItem('metaconnect_real_db', JSON.stringify(this.data));
+          window.dispatchEvent(new CustomEvent('metaconnect-db-changed'));
+        }, (error) => {
+          // Silent catch on standard query permissions or report safely
+          console.warn(`Firestore subscription noticed permission or network limits for ${col}:`, error);
+        });
+        
+        this.activeSubscriptions.push(unsub);
+      } catch (err) {
+        console.error(`Error setting up listener on ${col}:`, err);
+      }
+    });
+
+    try {
+      const unsubRecycle = onSnapshot(collection(dbFirestore, 'recycleMembers'), (snapshot) => {
+        const list: any[] = [];
+        snapshot.forEach(docSnap => {
+          list.push(docSnap.data());
+        });
+        if (!this.data.recycleBin) this.data.recycleBin = {};
+        this.data.recycleBin.members = list;
+        
+        localStorage.setItem('metaconnect_real_db', JSON.stringify(this.data));
+        window.dispatchEvent(new CustomEvent('metaconnect-db-changed'));
+      }, (error) => {
+        console.warn('Recycle members listener inactive:', error);
+      });
+      this.activeSubscriptions.push(unsubRecycle);
+    } catch (err) {
+      console.error('Error setting up recycleMembers listener:', err);
+    }
   }
 
   public getMode(): 'DEMO' | 'REAL' {
@@ -764,7 +955,6 @@ class DatabaseEngine {
   public setMode(mode: 'DEMO' | 'REAL') {
     localStorage.setItem(DB_MODE_KEY, mode);
     if (mode === 'REAL') {
-      // Initialize with empty database starting from scratch
       const savedReal = localStorage.getItem('metaconnect_real_db');
       if (savedReal) {
         this.data = JSON.parse(savedReal);
@@ -773,7 +963,6 @@ class DatabaseEngine {
         this.persist();
       }
     } else {
-      // Reload Demo State
       const savedDemo = localStorage.getItem('metaconnect_demo_db');
       if (savedDemo) {
         this.data = JSON.parse(savedDemo);
@@ -782,6 +971,7 @@ class DatabaseEngine {
         this.persist();
       }
     }
+    this.setupRealtimeListeners();
   }
 
   private syncFromStorage() {
@@ -849,6 +1039,9 @@ class DatabaseEngine {
       this.data.audits = this.data.audits.slice(0, 100);
     }
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('audits', audit.id, audit);
+    }
   }
 
   // Rollback System (by placing specific states back)
@@ -908,6 +1101,9 @@ class DatabaseEngine {
     this.data.churches = list;
     this.logAudit(updater.id, updater.fullName, 'CHURCH_EDIT', `Ubah profil/status gereja ${church.name}`, prev, church);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('churches', church.id, church);
+    }
   }
 
   public createChurch(church: Church, updater: User) {
@@ -915,6 +1111,9 @@ class DatabaseEngine {
     this.data.churches.push(church);
     this.logAudit(updater.id, updater.fullName, 'CHURCH_CREATE', `Mendaftarkan gereja lokal baru: ${church.name}`, null, church);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('churches', church.id, church);
+    }
   }
 
   public deleteChurch(churchId: string, updater: User): boolean {
@@ -928,11 +1127,15 @@ class DatabaseEngine {
       
       // Cascade delete members belonging to this church
       if (this.data.members) {
+        const toDeleteMembers = this.data.members.filter(m => m.churchId === churchId);
+        toDeleteMembers.forEach(m => this.deleteEntity('members', m.id));
         this.data.members = this.data.members.filter(m => m.churchId !== churchId);
       }
       
       // Cascade delete users belonging to this church
       if (this.data.users) {
+        const toDeleteUsers = this.data.users.filter(u => u.churchId === churchId && u.role !== 'SUPER_ADMIN');
+        toDeleteUsers.forEach(u => this.deleteEntity('users', u.id));
         this.data.users = this.data.users.filter(u => u.churchId !== churchId || u.role === 'SUPER_ADMIN');
       }
 
@@ -945,6 +1148,9 @@ class DatabaseEngine {
         null
       );
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.deleteEntity('churches', churchId);
+      }
       return true;
     }
     return false;
@@ -959,6 +1165,9 @@ class DatabaseEngine {
     if (!this.data.users) this.data.users = [];
     this.data.users.push(user);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('users', user.id, user);
+    }
   }
 
   public updateUser(user: User) {
@@ -967,6 +1176,9 @@ class DatabaseEngine {
     if (index !== -1) {
       this.data.users[index] = user;
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('users', user.id, user);
+      }
     }
   }
 
@@ -976,6 +1188,9 @@ class DatabaseEngine {
     if (index !== -1) {
       this.data.users.splice(index, 1);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.deleteEntity('users', userId);
+      }
     }
   }
 
@@ -996,6 +1211,7 @@ class DatabaseEngine {
       m.name.toLowerCase() === user.fullName.toLowerCase()
     );
     
+    let corrected: Member | null = null;
     if (!exists) {
       const birthDay = '1995-05-30';
       const parsedNickname = user.fullName.split(' ')[0] || user.fullName;
@@ -1027,7 +1243,7 @@ class DatabaseEngine {
         attachments: []
       };
       
-      const corrected = this.evaluateMember(initialMember);
+      corrected = this.evaluateMember(initialMember);
       this.data.members.push(corrected);
     }
 
@@ -1041,6 +1257,12 @@ class DatabaseEngine {
     );
 
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('users', user.id, user);
+      if (corrected) {
+        this.writeEntity('members', corrected.id, corrected);
+      }
+    }
     return true;
   }
 
@@ -1060,6 +1282,9 @@ class DatabaseEngine {
       null
     );
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.deleteEntity('users', userId);
+    }
     return true;
   }
 
@@ -1076,6 +1301,9 @@ class DatabaseEngine {
     this.data.members.push(correctedMember);
     this.logAudit(updater.id, updater.fullName, 'MEMBER_ADD', `Menambahkan jemaat baru: ${member.name} (${member.nickname})`, null, correctedMember);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('members', correctedMember.id, correctedMember);
+    }
   }
 
   public updateMember(member: Member, updater: User) {
@@ -1086,6 +1314,9 @@ class DatabaseEngine {
       this.data.members[index] = correctedMember;
       this.logAudit(updater.id, updater.fullName, 'MEMBER_EDIT', `Mengubah data jemaat: ${member.name}`, prev, correctedMember);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('members', correctedMember.id, correctedMember);
+      }
     }
   }
 
@@ -1100,6 +1331,10 @@ class DatabaseEngine {
       this.data.members.splice(index, 1);
       this.logAudit(updater.id, updater.fullName, 'MEMBER_REMOVE', `Memindahkan jemaat ${prev.name} ke Recycle Bin (Soft Delete).`, prev, null);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.deleteEntity('members', memberId);
+        this.writeEntity('recycleMembers', prev.id, prev);
+      }
     }
   }
 
@@ -1112,6 +1347,10 @@ class DatabaseEngine {
       this.data.recycleBin.members.splice(index, 1);
       this.logAudit(updater.id, updater.fullName, 'MEMBER_RESTORE', `Memulihkan jemaat ${member.name} dari Recycle Bin.`, null, member);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.deleteEntity('recycleMembers', memberId);
+        this.writeEntity('members', member.id, member);
+      }
     }
   }
 
@@ -1163,6 +1402,9 @@ class DatabaseEngine {
     this.data.divisions.push(div);
     this.logAudit(updater.id, updater.fullName, 'DIV_ADD', `Membuat divisi pelayanan baru: ${div.name}`, null, div);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('divisions', div.id, div);
+    }
   }
 
   public updateDivision(div: Division, updater: User) {
@@ -1174,6 +1416,9 @@ class DatabaseEngine {
       list[index] = div;
       this.logAudit(updater.id, updater.fullName, 'DIV_EDIT', `Mengubah struktur divisi: ${div.name}`, prev, div);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('divisions', div.id, div);
+      }
     }
   }
 
@@ -1185,6 +1430,9 @@ class DatabaseEngine {
       list.splice(index, 1);
       this.logAudit(updater.id, updater.fullName, 'DIV_REMOVE', `Menghapus divisi pelayanan: ${prev.name}`, prev, null);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.deleteEntity('divisions', divId);
+      }
     }
   }
 
@@ -1203,6 +1451,9 @@ class DatabaseEngine {
     this.data.customWorkflows.push(wf);
     this.logAudit(updater.id, updater.fullName, 'WF_ADD', `Menambahkan alur kerja kustom baru: ${wf.name}`, null, wf);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('customWorkflows', wf.id, wf);
+    }
   }
 
   public updateCustomWorkflow(wf: CustomApprovalWorkflow, updater: User) {
@@ -1214,6 +1465,9 @@ class DatabaseEngine {
       this.data.customWorkflows[idx] = wf;
       this.logAudit(updater.id, updater.fullName, 'WF_EDIT', `Mengubah alur kerja kustom: ${wf.name}`, prev, wf);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('customWorkflows', wf.id, wf);
+      }
     }
   }
 
@@ -1225,6 +1479,9 @@ class DatabaseEngine {
       this.data.customWorkflows.splice(idx, 1);
       this.logAudit(updater.id, updater.fullName, 'WF_DELETE', `Menghapus alur kerja kustom: ${wf.name}`, wf, null);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.deleteEntity('customWorkflows', wfId);
+      }
       return true;
     }
     return false;
@@ -1235,6 +1492,9 @@ class DatabaseEngine {
     this.data.approvals.push(req);
     this.logAudit(updater.id, updater.fullName, 'REQ_SUBMIT', `Membuat pengajuan (${req.type}): ${req.title}`, null, req);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('approvals', req.id, req);
+    }
   }
 
   public updateApproval(req: ApprovalRequest, updater: User) {
@@ -1246,6 +1506,9 @@ class DatabaseEngine {
       list[index] = req;
       this.logAudit(updater.id, updater.fullName, 'REQ_EDIT', `Mengubah detail pengajuan: ${req.title} (Status: ${req.status})`, prev, req);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('approvals', req.id, req);
+      }
     }
   }
 
@@ -1278,6 +1541,9 @@ class DatabaseEngine {
     this.data.pockets.push(pocket);
     this.logAudit(updater.id, updater.fullName, 'FIN_POCKET_ADD', `Menambah kantong kas baru: ${pocket.name}`, null, pocket);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('pockets', pocket.id, pocket);
+    }
   }
 
   public updatePocket(pocket: FinancialPocket, updater: User) {
@@ -1289,6 +1555,9 @@ class DatabaseEngine {
       this.data.pockets[idx] = pocket;
       this.logAudit(updater.id, updater.fullName, 'FIN_POCKET_EDIT', `Mengubah detail kantong kas: ${pocket.name}`, prev, pocket);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('pockets', pocket.id, pocket);
+      }
     }
   }
 
@@ -1306,12 +1575,18 @@ class DatabaseEngine {
         this.data.transactions.forEach(t => {
           if (t.pocketId === pocketId) {
             t.pocketId = `pocket-gereja-${p.churchId}`; // Reset to general
+            if (this.getMode() === 'REAL') {
+              this.writeEntity('transactions', t.id, t);
+            }
           }
         });
       }
       
       this.logAudit(updater.id, updater.fullName, 'FIN_POCKET_DELETE', `Menghapus kantong kas: ${p.name}`, p, null);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.deleteEntity('pockets', pocketId);
+      }
       return true;
     }
     return false;
@@ -1322,6 +1597,9 @@ class DatabaseEngine {
     this.data.transactions.push(tx);
     this.logAudit(updater.id, updater.fullName, 'FIN_TX_ADD', `Menambah data keuangan (${tx.type} - ${tx.category}): Rp ${tx.amount.toLocaleString('id-ID')},-`, null, tx);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('transactions', tx.id, tx);
+    }
   }
 
   public updateTransaction(tx: Transaction, updater: User) {
@@ -1333,6 +1611,9 @@ class DatabaseEngine {
       list[index] = tx;
       this.logAudit(updater.id, updater.fullName, 'FIN_TX_EDIT', `Mengubah nominal/deskripsi keuangan senilai Rp ${tx.amount.toLocaleString('id-ID')},-`, prev, tx);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('transactions', tx.id, tx);
+      }
     }
   }
 
@@ -1344,6 +1625,9 @@ class DatabaseEngine {
       list.splice(index, 1);
       this.logAudit(updater.id, updater.fullName, 'FIN_TX_REMOVE', `Menghapus transaksi keuangan: ${prev.description}`, prev, null);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.deleteEntity('transactions', txId);
+      }
     }
   }
 
@@ -1356,6 +1640,9 @@ class DatabaseEngine {
     if (!this.data.tasks) this.data.tasks = [];
     this.data.tasks.push(task);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('tasks', task.id, task);
+    }
   }
 
   public updateTask(task: Task) {
@@ -1363,6 +1650,9 @@ class DatabaseEngine {
     if (index !== -1) {
       this.data.tasks[index] = task;
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('tasks', task.id, task);
+      }
     }
   }
 
@@ -1371,6 +1661,9 @@ class DatabaseEngine {
     if (index !== -1) {
       this.data.tasks.splice(index, 1);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.deleteEntity('tasks', taskId);
+      }
     }
   }
 
@@ -1383,6 +1676,9 @@ class DatabaseEngine {
     if (!this.data.kids) this.data.kids = [];
     this.data.kids.push(kid);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('kids', kid.id, kid);
+    }
   }
 
   public updateKid(kid: SundaySchoolKid) {
@@ -1390,6 +1686,9 @@ class DatabaseEngine {
     if (index !== -1) {
       this.data.kids[index] = kid;
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('kids', kid.id, kid);
+      }
     }
   }
 
@@ -1398,6 +1697,9 @@ class DatabaseEngine {
     if (index !== -1) {
       this.data.kids.splice(index, 1);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.deleteEntity('kids', kidId);
+      }
     }
   }
 
@@ -1409,6 +1711,9 @@ class DatabaseEngine {
     if (!this.data.classes) this.data.classes = [];
     this.data.classes.push(cl);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('classes', cl.id, cl);
+    }
   }
 
   public updateClass(cl: SundaySchoolClass) {
@@ -1416,6 +1721,9 @@ class DatabaseEngine {
     if (index !== -1) {
       this.data.classes[index] = cl;
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('classes', cl.id, cl);
+      }
     }
   }
 
@@ -1433,6 +1741,9 @@ class DatabaseEngine {
     this.data.serviceTypes = list;
     this.logAudit(updater.id, updater.fullName, 'SERVICE_TYPE_ADD', `Membuat jenis pelayanan baru: ${st.name}`, null, st);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('serviceTypes', st.id, st);
+    }
   }
 
   public updateServiceType(st: ServiceType, updater: User) {
@@ -1444,6 +1755,9 @@ class DatabaseEngine {
       this.data.serviceTypes = list;
       this.logAudit(updater.id, updater.fullName, 'SERVICE_TYPE_EDIT', `Mengubah jenis pelayanan: ${st.name}`, prev, st);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('serviceTypes', st.id, st);
+      }
     }
   }
 
@@ -1456,6 +1770,9 @@ class DatabaseEngine {
       this.data.serviceTypes = list;
       this.logAudit(updater.id, updater.fullName, 'SERVICE_TYPE_DELETE', `Menghapus jenis pelayanan: ${prev.name}`, prev, null);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.deleteEntity('serviceTypes', stId);
+      }
     }
   }
 
@@ -1473,6 +1790,9 @@ class DatabaseEngine {
     this.data.serviceSchedules = list;
     this.logAudit(updater.id, updater.fullName, 'SCHEDULE_ADD', `Menjadwalkan ibadah baru: ${sch.serviceTypeName} pada tanggal ${sch.date}`, null, sch);
     this.persist();
+    if (this.getMode() === 'REAL') {
+      this.writeEntity('serviceSchedules', sch.id, sch);
+    }
   }
 
   public updateServiceSchedule(sch: ServiceSchedule, updater: User) {
@@ -1484,6 +1804,9 @@ class DatabaseEngine {
       this.data.serviceSchedules = list;
       this.logAudit(updater.id, updater.fullName, 'SCHEDULE_EDIT', `Mengubah jadwal ibadah: ${sch.serviceTypeName} (${sch.date})`, prev, sch);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('serviceSchedules', sch.id, sch);
+      }
     }
   }
 
@@ -1496,6 +1819,9 @@ class DatabaseEngine {
       this.data.serviceSchedules = list;
       this.logAudit(updater.id, updater.fullName, 'SCHEDULE_DELETE', `Menghapus jadwal ibadah: ${prev.serviceTypeName} (${prev.date})`, prev, null);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.deleteEntity('serviceSchedules', schId);
+      }
     }
   }
 
@@ -1522,6 +1848,9 @@ class DatabaseEngine {
 
       this.logAudit(updater.id, updater.fullName, 'MEMBER_ATTENDANCE', `Mengubah kehadiran jemaat ${member.name} tanggal ${date}: ${nextVal ? 'HADIR' : 'ABSEN'}`, null, null);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('members', member.id, member);
+      }
       return nextVal;
     }
     return false;
@@ -1537,6 +1866,9 @@ class DatabaseEngine {
       user.attendanceHistory[date] = nextVal;
       this.logAudit(updater.id, updater.fullName, 'STAF_ATTENDANCE', `Mengubah kehadiran pelayan/staf ${user.fullName} tanggal ${date}: ${nextVal ? 'HADIR' : 'ABSEN'}`, null, null);
       this.persist();
+      if (this.getMode() === 'REAL') {
+        this.writeEntity('users', user.id, user);
+      }
       return nextVal;
     }
     return false;

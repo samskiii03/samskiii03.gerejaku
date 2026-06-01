@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /churches/{churchId} {
+      allow read, write: if true;
+    }
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+    match /members/{memberId} {
+      allow read, write: if true;
+    }
+    match /divisions/{divisionId} {
+      allow read, write: if true;
+    }
+    match /approvals/{approvalId} {
+      allow read, write: if true;
+    }
+    match /transactions/{transactionId} {
+      allow read, write: if true;
+    }
+    match /pockets/{pocketId} {
+      allow read, write: if true;
+    }
+    match /customWorkflows/{workflowId} {
+      allow read, write: if true;
+    }
+    match /tasks/{taskId} {
+      allow read, write: if true;
+    }
+    match /kids/{kidId} {
+      allow read, write: if true;
+    }
+    match /classes/{classId} {
+      allow read, write: if true;
+    }
+    match /serviceTypes/{stId} {
+      allow read, write: if true;
+    }
+    match /serviceSchedules/{schId} {
+      allow read, write: if true;
+    }
+    match /audits/{auditId} {
+      allow read, write: if true;
+    }
+    match /recycleMembers/{memberId} {
+      allow read, write: if true;
+    }
+  }
+}

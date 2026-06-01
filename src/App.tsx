@@ -146,6 +146,21 @@ export default function App() {
     }
   }, [seed, dbMode]);
 
+  useEffect(() => {
+    const handler = () => {
+      setSeed(s => s + 1);
+      const sessionUser = db.getSessionUser();
+      if (sessionUser) {
+        const matchingDbUser = db.getUsers().find(u => u.id === sessionUser.id);
+        if (matchingDbUser) {
+          setCurrentUser(matchingDbUser);
+        }
+      }
+    };
+    window.addEventListener('metaconnect-db-changed', handler);
+    return () => window.removeEventListener('metaconnect-db-changed', handler);
+  }, []);
+
   // Sync state helpers
   const handleToggleDbMode = (mode: 'DEMO' | 'REAL') => {
     db.setMode(mode);
