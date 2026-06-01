@@ -382,9 +382,9 @@ export default function App() {
 
   // Direct quick logins for demo setup
   const handleQuickDemoLogin = (role: 'GEMBALA' | 'PENGURUS' | 'PELAYAN' | 'SUPER_ADMIN') => {
-    // Force mode to DEMO as they clicked the demo testing bypass buttons
-    db.setMode('DEMO');
-    setDbMode('DEMO');
+    // Automatically switch to REAL mode on login as requested
+    db.setMode('REAL');
+    setDbMode('REAL');
 
     const uname = role === 'SUPER_ADMIN' ? 'superadmin' : role.toLowerCase();
     const allUsers = db.getUsers();
