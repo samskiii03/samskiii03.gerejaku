@@ -32,8 +32,19 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(db.getSessionUser());
-  const [dbMode, setDbMode] = useState<'DEMO' | 'REAL'>(db.getMode());
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const user = db.getSessionUser();
+    if (user) {
+      db.setMode('REAL');
+    }
+    return user;
+  });
+  const [dbMode, setDbMode] = useState<'DEMO' | 'REAL'>(() => {
+    if (db.getSessionUser()) {
+      return 'REAL';
+    }
+    return db.getMode();
+  });
   const [activeMenu, setActiveMenu] = useState<string>(() => {
     const user = db.getSessionUser();
     if (user?.role === 'SUPER_ADMIN') return 'synod';

@@ -949,7 +949,8 @@ class DatabaseEngine {
 
   public getMode(): 'DEMO' | 'REAL' {
     const mode = localStorage.getItem(DB_MODE_KEY);
-    return (mode === 'REAL' ? 'REAL' : 'DEMO') as 'DEMO' | 'REAL';
+    if (!mode) return 'REAL'; // Default to REAL mode instead of DEMO
+    return (mode === 'DEMO' ? 'DEMO' : 'REAL') as 'DEMO' | 'REAL';
   }
 
   public setMode(mode: 'DEMO' | 'REAL') {
